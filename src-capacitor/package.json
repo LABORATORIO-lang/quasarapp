@@ -1,0 +1,13 @@
+{
+  "name": "dinamicaapp",
+  "version": "0.0.1",
+  "description": "App Dinamica",
+  "author": "Jackson <laboratorio@dinamicamaquinas.com>",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/core": "^8.0.0"
+  }
+}

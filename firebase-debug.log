@@ -1,0 +1,19 @@
+[debug] [2026-05-24T21:02:03.809Z] ----------------------------------------------------------------------
+[debug] [2026-05-24T21:02:03.811Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\JACKSON\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js init
+[debug] [2026-05-24T21:02:03.812Z] CLI Version:   15.18.0
+[debug] [2026-05-24T21:02:03.812Z] Platform:      win32
+[debug] [2026-05-24T21:02:03.812Z] Node Version:  v24.16.0
+[debug] [2026-05-24T21:02:03.812Z] Time:          Sun May 24 2026 17:02:03 GMT-0400 (Horário Padrão do Amazonas)
+[debug] [2026-05-24T21:02:03.812Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  E:\app Dinamica\quasar\dinamica-app
+

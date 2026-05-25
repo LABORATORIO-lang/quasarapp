@@ -1,0 +1,6 @@
+{
+  "appId": "com.dinamica.checklist",
+  "appName": "Dinâmica Checklist",
+  "webDir": "dist/spa",
+  "bundledWebRuntime": false
+}
