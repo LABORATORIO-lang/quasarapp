@@ -7,7 +7,7 @@
             <q-img
               src="~assets/logo_empresa.png"
               spinner-color="white"
-              style="height: 140px; max-width: 280px"
+              style="height: 140px; max-width: 480px"
               fit="contain"
             />
           </div>
