@@ -19,8 +19,8 @@
 
         <q-separator color="grey-8" class="q-mb-sm" />
 
-        <q-list padding>
-          <q-item clickable v-ripple to="/inicio" exact>
+        <q-list padding class="text-white">
+          <q-item clickable v-ripple to="/inicio" exact active-class="text-orange-8">
             <q-item-section avatar><q-icon name="home" color="orange-8" /></q-item-section>
             <q-item-section>Início</q-item-section>
           </q-item>
@@ -31,12 +31,29 @@
           </q-item>
 
           <q-item clickable v-ripple @click="navegar('/inicio/logistica')">
-            <q-item-section avatar
-              ><q-icon name="local_shipping" color="orange-8"
-            /></q-item-section>
+            <q-item-section avatar>
+              <q-icon name="local_shipping" color="orange-8" />
+            </q-item-section>
             <q-item-section>Logística</q-item-section>
           </q-item>
+
+          <q-separator color="grey-8" class="q-my-sm" />
+
+          <q-item clickable v-ripple @click="navegar('/admin/master')">
+            <q-item-section avatar>
+              <q-icon name="admin_panel_settings" color="orange-8" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>Painel Admin</q-item-label>
+            </q-item-section>
+          </q-item>
         </q-list>
+        <div class="absolute-bottom q-pa-md">
+          <q-item clickable v-ripple @click="logout" class="text-red">
+            <q-item-section avatar><q-icon name="logout" /></q-item-section>
+            <q-item-section>Sair</q-item-section>
+          </q-item>
+        </div>
 
         <div class="absolute-bottom q-pa-md">
           <q-item clickable v-ripple @click="logout" class="text-red">

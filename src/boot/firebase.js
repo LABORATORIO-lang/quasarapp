@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: 'AIzaSyChbl085tghoV0SaxG7xF5VtAZHJL9OxgQ',
@@ -14,6 +18,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 
-// Exporta as instâncias para usar nas telas
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+
+// 🧠 Inicializa o Firestore já com o Cache Offline Ativado de forma profissional!
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+})

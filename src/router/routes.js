@@ -32,6 +32,22 @@ const routes = [
   },
 
   { path: '/:catchAll(.*)*', component: () => import('pages/ErrorNotFound.vue') },
+
+  {
+    path: '/admin',
+    component: () => import('layouts/MainLayout.vue'), // Se o seu menu está aqui, ok!
+    children: [
+      { path: 'master', component: () => import('pages/telas/admin/AdminModelos.vue') },
+      // A única rota de edição necessária:
+      {
+        path: 'editar/:colecao/:modelo',
+        component: () => import('pages/telas/admin/AdminEditar.vue'),
+      },
+      { path: 'comercial', component: () => import('pages/telas/admin/AdminComercial.vue') },
+      { path: 'logistica', component: () => import('pages/telas/admin/AdminLogistica.vue') },
+      { path: 'posvenda', component: () => import('pages/telas/admin/AdminPosVenda.vue') },
+    ],
+  },
 ]
 
 export default routes

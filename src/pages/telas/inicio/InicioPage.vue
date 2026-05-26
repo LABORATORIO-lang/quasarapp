@@ -3,7 +3,7 @@
     <div class="column items-center text-center q-pa-md">
       <q-img
         src="~assets/logo_empresa.png"
-        style="width: 450px; height: 150px"
+        style="height: 140px; max-width: 480px"
         fit="contain"
         class="q-mb-lg"
       />
