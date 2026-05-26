@@ -50,7 +50,7 @@
               </q-avatar>
             </div>
             <div class="text-h6 text-weight-bold">Pós-Venda</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Ckecklist Pós-Venda.</div>
+            <div class="text-caption text-grey-5 q-mt-xs">Checklist Pós-Venda.</div>
           </q-card-section>
 
           <q-separator color="grey-8" />
@@ -133,8 +133,7 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 
 function irPara(setor) {
-  // Se o setor for 'comercial', 'logistica' ou 'posvenda'
-  // O caminho será /admin/comercial, /admin/logistica, etc.
+  // Isso vai montar a URL: /admin/pos_venda
   router.push(`/admin/${setor}`)
 }
 </script>

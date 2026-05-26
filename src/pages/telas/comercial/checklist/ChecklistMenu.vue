@@ -1,88 +1,122 @@
 <template>
-  <q-page class="bg-grey-10 flex flex-center">
-    <div class="q-pa-md full-width" style="max-width: 400px">
-      <div class="text-h5 text-white text-weight-bold q-mb-xl text-center">Checklist</div>
+  <q-page class="q-pa-lg text-white bg-grey-10">
+    <div class="row items-center justify-between q-mb-xl q-col-gutter-sm">
+      <div class="row items-center q-gutter-sm">
+        <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
+        <div>
+          <div class="text-h5 text-weight-bold">Checklist Comercial</div>
+          <div class="text-caption text-grey-5">
+            Inicie novas vistorias ou gerencie seus relatórios
+          </div>
+        </div>
+      </div>
+    </div>
 
-      <div class="column q-gutter-md">
-        <q-btn
-          size="lg"
-          color="orange-8"
-          icon="add"
-          label="Novo Checklist"
-          class="full-width q-py-md text-bold"
-          rounded
-          @click="abrirSelecao"
-        />
+    <div class="row q-col-gutter-lg">
+      <div class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card column justify-between">
+          <q-card-section class="q-pa-lg col column justify-center">
+            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
+              <q-icon name="note_add" />
+            </q-avatar>
+            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Novo Checklist</div>
+            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
+              Inicie uma nova vistoria do zero selecionando o equipamento.
+            </div>
+          </q-card-section>
 
-        <q-btn
-          outline
-          size="lg"
-          color="orange-8"
-          icon="pending"
-          label="Em Andamento"
-          class="full-width q-py-md text-bold"
-          rounded
-          @click="router.push('/inicio/comercial/checklist/rascunhos')"
-        />
-        <q-btn
-          flat
-          color="grey-5"
-          icon="history"
-          label="Histórico"
-          class="full-width"
-          @click="router.push('/inicio/comercial/checklist/historico')"
-        />
+          <q-separator color="grey-8" />
+
+          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
+            <q-btn
+              flat
+              color="orange-8"
+              label="INICIAR AGORA"
+              icon-right="add"
+              @click="router.push('/inicio/comercial/checklist/selecionar')"
+            />
+          </q-card-actions>
+        </q-card>
       </div>
 
-      <q-dialog v-model="mostrarModal">
-        <q-card class="bg-grey-9 text-white" style="width: 300px">
-          <q-card-section>
-            <div class="text-h6">Selecione o Equipamento</div>
+      <div class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card column justify-between">
+          <q-card-section class="q-pa-lg col column justify-center">
+            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
+              <q-icon name="pending_actions" />
+            </q-avatar>
+            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Em Andamento</div>
+            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
+              Continue relatórios e rascunhos que ainda não foram finalizados.
+            </div>
           </q-card-section>
 
-          <q-card-section class="q-gutter-sm">
+          <q-separator color="grey-8" />
+
+          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
             <q-btn
-              label="Pulverizador"
+              flat
               color="orange-8"
-              class="full-width"
-              @click="iniciar('PULVERIZADOR')"
+              label="CONTINUAR"
+              icon-right="arrow_forward"
+              @click="router.push('/inicio/comercial/checklist/rascunhos')"
             />
-            <q-btn
-              label="Plantio"
-              color="orange-8"
-              class="full-width"
-              @click="iniciar('PLANTIO')"
-            />
-            <q-btn
-              label="Distribuidor"
-              color="orange-8"
-              class="full-width"
-              @click="iniciar('DISTRIBUIDOR')"
-            />
-          </q-card-section>
+          </q-card-actions>
         </q-card>
-      </q-dialog>
+      </div>
+
+      <div class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card column justify-between">
+          <q-card-section class="q-pa-lg col column justify-center">
+            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
+              <q-icon name="history" />
+            </q-avatar>
+            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Histórico</div>
+            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
+              Acesse checklists antigos, revisões e relatórios finalizados.
+            </div>
+          </q-card-section>
+
+          <q-separator color="grey-8" />
+
+          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
+            <q-btn
+              flat
+              color="orange-8"
+              label="ACESSAR"
+              icon-right="arrow_forward"
+              @click="router.push('/inicio/comercial/checklist/historico')"
+            />
+          </q-card-actions>
+        </q-card>
+      </div>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useChecklistStore } from 'src/stores/checklist-store'
 
 const router = useRouter()
-const store = useChecklistStore()
-const mostrarModal = ref(false) // Variável reativa para o modal
-
-// Função explícita para abrir
-function abrirSelecao() {
-  mostrarModal.value = true
-}
-
-function iniciar(tipo) {
-  store.setTipo(tipo)
-  mostrarModal.value = false // Fecha o modal
-  router.push('/inicio/comercial/checklist/formulario')
-}
 </script>
+
+<style scoped>
+.custom-card {
+  border: 1px solid #424242;
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+  height: 260px !important;
+}
+
+.custom-card:hover {
+  transform: translateY(-4px);
+  border-color: #ff9800;
+}
+
+.icon-box {
+  border: 1px solid #ff9800;
+}
+</style>

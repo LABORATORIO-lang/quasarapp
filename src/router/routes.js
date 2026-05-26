@@ -11,6 +11,11 @@ const routes = [
       { path: 'comercial', component: () => import('pages/telas/comercial/ComercialPage.vue') },
       { path: 'logistica', component: () => import('pages/telas/logistica/LogisticaPage.vue') },
 
+      // Rotas do Checklist (apenas uma vez!)
+      {
+        path: 'comercial/checklist/selecionar',
+        component: () => import('pages/telas/comercial/checklist/ChecklistSelecao.vue'),
+      },
       {
         path: 'comercial/checklist/rascunhos',
         component: () => import('pages/telas/comercial/checklist/ChecklistRascunhos.vue'),
@@ -20,10 +25,10 @@ const routes = [
         component: () => import('pages/telas/comercial/checklist/ChecklistMenu.vue'),
       },
       {
-        path: 'comercial/checklist/formulario',
+        // 🚀 AQUI ESTÁ O SEGREDO: O parâmetro :tipo
+        path: 'comercial/checklist/formulario/:tipo',
         component: () => import('pages/telas/comercial/checklist/ChecklistForm.vue'),
       },
-
       {
         path: 'comercial/checklist/historico',
         component: () => import('pages/telas/comercial/checklist/ChecklistHistory.vue'),
@@ -35,17 +40,17 @@ const routes = [
 
   {
     path: '/admin',
-    component: () => import('layouts/MainLayout.vue'), // Se o seu menu está aqui, ok!
+    component: () => import('layouts/MainLayout.vue'),
     children: [
       { path: 'master', component: () => import('pages/telas/admin/AdminModelos.vue') },
-      // A única rota de edição necessária:
       {
         path: 'editar/:colecao/:modelo',
         component: () => import('pages/telas/admin/AdminEditar.vue'),
       },
       { path: 'comercial', component: () => import('pages/telas/admin/AdminComercial.vue') },
+
+      { path: 'pos_venda', component: () => import('pages/telas/admin/AdminPosVenda.vue') },
       { path: 'logistica', component: () => import('pages/telas/admin/AdminLogistica.vue') },
-      { path: 'posvenda', component: () => import('pages/telas/admin/AdminPosVenda.vue') },
     ],
   },
 ]
