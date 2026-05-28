@@ -91,7 +91,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth } from 'boot/firebase'
-import { signInWithEmailAndPassword } from 'firebase/auth'
+// 1º AJUSTE: Adicionamos a função signOut na importação do firebase/auth
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import { useQuasar } from 'quasar'
 
 const $q = useQuasar()
@@ -111,7 +112,26 @@ const handleLogin = async () => {
   $q.loading.show({ message: 'Autenticando...' })
 
   try {
-    await signInWithEmailAndPassword(auth, fullEmail, password.value)
+    // 2º AJUSTE: Guardamos o resultado do login nesta variável "userCredential"
+    const userCredential = await signInWithEmailAndPassword(auth, fullEmail, password.value)
+    const user = userCredential.user
+
+    // 3º AJUSTE: A barreira de verificação do email!
+    if (!user.emailVerified) {
+      await signOut(auth) // Desloga imediatamente por segurança
+      $q.loading.hide() // Esconde a bolinha de carregamento
+
+      $q.notify({
+        type: 'warning',
+        message:
+          'Por favor, verifique seu email antes de fazer login. Verifique sua caixa de entrada ou spam.',
+        timeout: 5000,
+      })
+
+      return // Interrompe o código aqui para não deixar ir para a tela de '/inicio'
+    }
+
+    // Se o emailVerified for "true", o código passa direto e o login acontece normalmente
     $q.loading.hide()
     $q.notify({ type: 'positive', message: 'Login realizado com sucesso!' })
     router.push('/inicio')

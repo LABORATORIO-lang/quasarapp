@@ -4,6 +4,12 @@ const routes = [
   { path: '/forgot-password', component: () => import('pages/login/ForgotPasswordPage.vue') },
 
   {
+    // A nossa nova rota genérica e inteligente!
+    path: '/historico/:setor',
+    component: () => import('pages/HistoricoRegistros.vue'),
+  },
+
+  {
     path: '/inicio',
     component: () => import('layouts/MainLayout.vue'),
     children: [
@@ -11,7 +17,7 @@ const routes = [
       { path: 'comercial', component: () => import('pages/telas/comercial/ComercialPage.vue') },
       { path: 'logistica', component: () => import('pages/telas/logistica/LogisticaPage.vue') },
 
-      // Rotas do Checklist (apenas uma vez!)
+      // Rotas do Checklist
       {
         path: 'comercial/checklist/selecionar',
         component: () => import('pages/telas/comercial/checklist/ChecklistSelecao.vue'),
@@ -25,14 +31,10 @@ const routes = [
         component: () => import('pages/telas/comercial/checklist/ChecklistMenu.vue'),
       },
       {
-        // 🚀 AQUI ESTÁ O SEGREDO: O parâmetro :tipo
         path: 'comercial/checklist/formulario/:tipo',
         component: () => import('pages/telas/comercial/checklist/ChecklistForm.vue'),
       },
-      {
-        path: 'comercial/checklist/historico',
-        component: () => import('pages/telas/comercial/checklist/ChecklistHistory.vue'),
-      },
+      // O bloco do ChecklistHistory.vue que estava a causar o erro foi removido daqui!
     ],
   },
 
@@ -48,7 +50,6 @@ const routes = [
         component: () => import('pages/telas/admin/AdminEditar.vue'),
       },
       { path: 'comercial', component: () => import('pages/telas/admin/AdminComercial.vue') },
-
       { path: 'pos_venda', component: () => import('pages/telas/admin/AdminPosVenda.vue') },
       { path: 'logistica', component: () => import('pages/telas/admin/AdminLogistica.vue') },
     ],

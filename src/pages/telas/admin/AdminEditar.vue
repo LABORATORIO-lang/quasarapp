@@ -112,23 +112,26 @@
 
     <div
       v-if="itens.length > 0"
-      class="sticky-footer row justify-between items-center bg-grey-9 q-pa-md border-top-grey"
+      class="sticky-footer row no-wrap items-center bg-grey-9 q-pa-md border-top-grey"
     >
       <q-btn
         outline
         color="orange-8"
-        label="Adicionar Novo"
+        label="Adicionar"
         icon="add"
         no-caps
         class="text-weight-bold"
         @click="adicionarItem"
       />
+
+      <q-space />
+
       <q-btn
         color="orange-8"
         text-color="black"
-        label="Salvar Alterações"
+        label="Salvar"
         icon="save"
-        class="text-weight-bold q-px-xl"
+        class="text-weight-bold"
         @click="salvarTudo()"
       />
     </div>

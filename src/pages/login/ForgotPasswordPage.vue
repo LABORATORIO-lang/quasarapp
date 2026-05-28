@@ -127,14 +127,15 @@ const handleResetPassword = async () => {
   } catch (error) {
     isLoading.value = false
 
-    // Se o usuário não existir, abre a caixinha assim mesmo para teste visual
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-      showSuccessDialog.value = true
-      return
-    }
+    // ATENÇÃO: Agora vamos imprimir o erro real no console do navegador (F12)
+    console.error('ERRO DETALHADO:', error)
 
-    console.error('Erro de comunicação com o Firebase:', error)
-    showSuccessDialog.value = true
+    // Mostramos uma mensagem mais útil caso o erro seja conhecido
+    if (error.code === 'auth/user-not-found') {
+      alert('Utilizador não encontrado no sistema.')
+    } else {
+      alert('Erro ao enviar e-mail: ' + error.message)
+    }
   }
 }
 

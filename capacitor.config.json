@@ -1,0 +1,7 @@
+{
+  "appId": "com.dinamicamaquinas.comercial",
+  "appName": "Dinâmica Máquinas",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#1D1D1D"
+}

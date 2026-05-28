@@ -15,10 +15,14 @@
     "postinstall": "quasar prepare"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "firebase": "^12.13.0",
     "html2pdf.js": "^0.14.0",
+    "localforage": "^1.10.0",
     "pdfmake": "^0.3.9",
     "pinia": "^3.0.4",
     "quasar": "^2.16.0",
