@@ -21,12 +21,46 @@ const imagemParaBase64 = async (url) => {
   })
 }
 
+// ==========================================
+// MÁQUINA DE LIMPEZA DE IMAGENS (BLINDAGEM)
+// ==========================================
+// ==========================================
+// MÁQUINA DE LIMPEZA DE IMAGENS (BLINDAGEM ESTILIZADA)
+// ==========================================
+const formatarImagem = (img) => {
+  if (!img || typeof img !== 'string') return null
+
+  // Limpa espaços invisíveis ou quebras de linha que corrompem o base64
+  const limpa = img.replace(/\s+/g, '')
+
+  // O pdfMake SÓ suporta PNG, JPG e JPEG.
+  // Bloqueamos WebP, SVG, GIF, etc., que causam o erro "Unknown image format"
+  if (
+    limpa.startsWith('data:image/png') ||
+    limpa.startsWith('data:image/jpeg') ||
+    limpa.startsWith('data:image/jpg')
+  ) {
+    return limpa
+  }
+
+  // Se chegar aqui, é porque a imagem está num formato não suportado (ex: WebP)
+  console.warn('⚠️ IMAGEM BLOQUEADA: Formato não suportado pelo PDF ->', limpa.substring(0, 30))
+  return null
+}
+
 export const gerarChecklistPdf = async (dadosDaTela) => {
+  console.log('DADOS RECEBIDOS NO GERADOR DE PDF:', dadosDaTela)
+
   const { nomeMaquina, formulario, itens, assinaturas, fotosGerais } = dadosDaTela
 
-  let logoBase64 = ''
+  // 1. Limpar e validar as assinaturas com segurança logo de início
+  const imgVend = formatarImagem(assinaturas?.vendedorImagem)
+  const imgCli = formatarImagem(assinaturas?.clienteImagem)
+  const imgTec = formatarImagem(assinaturas?.tecnicoImagem)
+
+  let logoBase64 = null
   try {
-    logoBase64 = await imagemParaBase64(logoTimbrado)
+    logoBase64 = formatarImagem(await imagemParaBase64(logoTimbrado))
   } catch (e) {
     console.error('Erro ao carregar a logo', e)
   }
@@ -34,80 +68,83 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
   // --- MONTANDO LISTA ÚNICA DE FOTOS ---
   const todasAsFotos = []
 
-  // 1. Adicionar Fotos Gerais
+  // 2. Fotos Gerais com BLINDAGEM MÁXIMA
   if (fotosGerais) {
     ;['Frente', 'Direita', 'Traseira', 'Esquerda'].forEach((pos) => {
-      if (fotosGerais[pos]) {
-        todasAsFotos.push({ titulo: `Foto Geral - ${pos}`, base64: fotosGerais[pos] })
+      const fotoLimpa = formatarImagem(fotosGerais[pos])
+      if (fotoLimpa) {
+        todasAsFotos.push({ titulo: `Foto Geral - ${pos}`, base64: fotoLimpa })
       }
     })
   }
 
-  // 2. Adicionar Fotos dos Itens
+  // 3. Fotos dos Itens com BLINDAGEM MÁXIMA
   if (itens && itens.length > 0) {
     itens.forEach((item, index) => {
       if (item.fotos?.length > 0) {
         item.fotos.forEach((foto) => {
-          todasAsFotos.push({ titulo: `Item ${index + 1}: ${item.texto}`, base64: foto })
+          const fotoLimpa = formatarImagem(foto)
+          if (fotoLimpa) {
+            todasAsFotos.push({ titulo: `Item ${index + 1}: ${item.texto}`, base64: fotoLimpa })
+          }
         })
       }
     })
   }
 
-  // 3. Criar páginas de anexos com 2 fotos por folha
+  // --- CRIANDO PÁGINAS DE FOTOS ---
   const anexosContent = []
   for (let i = 0; i < todasAsFotos.length; i += 2) {
     const par = todasAsFotos.slice(i, i + 2)
 
-    // Monta o conteúdo da página
     const pagina = {
       stack: [],
       pageBreak: 'before',
       margin: [0, 0],
     }
 
-    // Adiciona cada foto do par ao stack (uma embaixo da outra)
     par.forEach((foto, index) => {
       pagina.stack.push({
         text: foto.titulo,
         style: 'sectionTitulo',
         fontSize: 12,
         alignment: 'center',
-        margin: [0, index === 0 ? 0 : 10, 0, 5], // Reduzi um pouco a margem para sobrar espaço
+        margin: [0, index === 0 ? 0 : 10, 0, 5],
       })
       pagina.stack.push({
         image: foto.base64,
-        width: 400, // Largura máxima
-        height: 300, // ALTURA MÁXIMA FORÇADA
-        fit: [400, 300], // O 'fit' garante que ela não ultrapasse esse retângulo
+        width: 400,
+        height: 300,
+        fit: [400, 300],
         alignment: 'center',
         margin: [0, 0, 0, 5],
       })
     })
     anexosContent.push(pagina)
   }
+
   // --- DEFINIÇÃO DO DOCUMENTO ---
   const docDefinition = {
     pageSize: 'A4',
     pageMargins: [40, 70, 40, 70],
+
     header: () =>
       logoBase64
         ? { image: logoBase64, width: 515, alignment: 'center', margin: [0, 20, 0, 10] }
         : null,
+
     footer: (currentPage, pageCount) => {
       return {
         stack: [
           {
-            // Linha laranja decorativa
             canvas: [
               { type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: '#F3772C' },
             ],
             margin: [40, 0, 40, 5],
           },
           {
-            // Seu novo texto de rodapé
             text: `Dinâmica Máquinas Agrícolas LTDA, Fone: (65) 3382-4743\nEndereço: Av. Olacyr Francisco de Moraes, nº 3005 - Bairro Area Urbana II, CEP 78.360-000 - Campo Novo do Parecis/MT\nPágina ${currentPage} de ${pageCount}`,
-            fontSize: 8, // Diminui um pouquinho para garantir que tudo caiba em duas linhas
+            fontSize: 8,
             color: '#555',
             alignment: 'center',
             margin: [40, 0, 40, 0],
@@ -115,6 +152,7 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
         ],
       }
     },
+
     content: [
       { text: '\nRELATÓRIO DE AVALIAÇÃO', style: 'header', alignment: 'center' },
       {
@@ -128,10 +166,14 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
       {
         margin: [0, 0, 0, 20],
         columns: [
+          // ==========================================
+          // COLUNA DA ESQUERDA (4 Campos)
+          // ==========================================
           {
+            width: '45%',
             stack: [
               { text: 'CLIENTE', style: 'label' },
-              { text: formulario?.cliente || '-', style: 'value' },
+              { text: formulario?.cliente || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -146,8 +188,9 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
+
               { text: 'MARCA', style: 'label' },
-              { text: formulario?.marca || '-', style: 'value' },
+              { text: formulario?.marca || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -162,8 +205,27 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
+
               { text: 'SÉRIE', style: 'label' },
-              { text: formulario?.serie || '-', style: 'value' },
+              { text: formulario?.serie || '-', style: 'value', alignment: 'left' },
+              {
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 0,
+                    y1: 5,
+                    x2: 230,
+                    y2: 5,
+                    lineWidth: 0.5,
+                    lineColor: '#F3772C',
+                  },
+                ],
+                margin: [0, 0, 0, 10],
+              },
+
+              // ---> HORÍMETRO NA ESQUERDA <---
+              { text: 'HORÍMETRO', style: 'label' },
+              { text: formulario?.horimetro || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -179,13 +241,21 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 margin: [0, 0, 0, 10],
               },
             ],
-            width: '45%',
           },
+
+          // ==========================================
+          // ESPAÇO VAZIO NO MEIO
+          // ==========================================
           { text: '', width: '10%' },
+
+          // ==========================================
+          // COLUNA DA DIREITA (3 Campos)
+          // ==========================================
           {
+            width: '45%',
             stack: [
               { text: 'CIDADE', style: 'label' },
-              { text: formulario?.cidade || '-', style: 'value' },
+              { text: formulario?.cidade || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -200,8 +270,9 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
+
               { text: 'MODELO', style: 'label' },
-              { text: formulario?.modelo || '-', style: 'value' },
+              { text: formulario?.modelo || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -216,8 +287,9 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
-              { text: 'HORÍMETRO', style: 'label' },
-              { text: formulario?.horimetro || '-', style: 'value' },
+
+              { text: 'ANO', style: 'label' },
+              { text: formulario?.ano || '-', style: 'value', alignment: 'left' },
               {
                 canvas: [
                   {
@@ -233,7 +305,6 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 margin: [0, 0, 0, 10],
               },
             ],
-            width: '45%',
           },
         ],
       },
@@ -268,17 +339,28 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
         margin: [0, 0, 0, 20],
       },
 
-      // ... código anterior ...
-      { text: 'ASSINATURAS', style: 'sectionTitulo', pageBreak: 'before' },
+      // --- 1º ANEXOS (Fotos aparecem antes das assinaturas) ---
+      ...(anexosContent || []),
+
+      // --- 2º ASSINATURAS ---
+      {
+        text: 'ASSINATURAS',
+        style: 'sectionTitulo',
+        margin: [0, 30, 0, 10],
+        // A MÁGICA DA QUEBRA DE PÁGINA DEPENDENDO DO NÚMERO DE FOTOS
+        ...(todasAsFotos.length > 0 && todasAsFotos.length % 2 === 0
+          ? { pageBreak: 'before' }
+          : {}),
+      },
+
       {
         columns: [
-          // Coluna do Vendedor
+          // Vendedor
           {
             stack: [
-              // Se tiver imagem, mostra a imagem. Se não, dá um espaço em branco.
-              assinaturas?.vendedorImagem
-                ? { image: assinaturas.vendedorImagem, width: 150, alignment: 'center' }
-                : { text: '\n\n', margin: [0, 20] },
+              imgVend
+                ? { image: imgVend, width: 150, alignment: 'center' }
+                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
               {
                 text: '____________________________________',
                 alignment: 'center',
@@ -286,14 +368,13 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
               },
               { text: 'Vendedor(a): ' + (assinaturas?.vendedorNome || ''), alignment: 'center' },
             ],
-            margin: [0, 20, 0, 0],
           },
-          // Coluna do Cliente
+          // Cliente
           {
             stack: [
-              assinaturas?.clienteImagem
-                ? { image: assinaturas.clienteImagem, width: 150, alignment: 'center' }
-                : { text: '\n\n', margin: [0, 20] },
+              imgCli
+                ? { image: imgCli, width: 150, alignment: 'center' }
+                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
               {
                 text: '____________________________________',
                 alignment: 'center',
@@ -301,17 +382,16 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
               },
               { text: 'Cliente: ' + (assinaturas?.clienteNome || ''), alignment: 'center' },
             ],
-            margin: [0, 20, 0, 0],
           },
         ],
       },
-      // Coluna do Técnico (Aparece centralizada embaixo, apenas se ele tiver assinado ou colocado o nome)
-      assinaturas?.tecnicoImagem || assinaturas?.tecnicoNome
+      // Técnico
+      imgTec || assinaturas?.tecnicoNome
         ? {
             stack: [
-              assinaturas.tecnicoImagem
-                ? { image: assinaturas.tecnicoImagem, width: 150, alignment: 'center' }
-                : { text: '\n\n', margin: [0, 20] },
+              imgTec
+                ? { image: imgTec, width: 150, alignment: 'center' }
+                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
               {
                 text: '____________________________________',
                 alignment: 'center',
@@ -322,10 +402,8 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
             margin: [0, 40, 0, 0],
           }
         : null,
-
-      ...anexosContent, // Suas páginas de fotos que configuramos antes
-      // ... resto do código ...
     ],
+
     styles: {
       header: { fontSize: 18, bold: true, color: '#F3772C', alignment: 'center' },
       subheader: { fontSize: 12, color: '#555', alignment: 'center', margin: [0, 0, 0, 20] },

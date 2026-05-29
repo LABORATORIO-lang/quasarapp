@@ -85,7 +85,7 @@
               color="orange-8"
               label="ACESSAR"
               icon-right="arrow_forward"
-              @click="router.push('/inicio/comercial/checklist/historico')"
+              @click="router.push('/inicio/historico/comercial')"
             />
           </q-card-actions>
         </q-card>

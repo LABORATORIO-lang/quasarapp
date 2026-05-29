@@ -146,20 +146,16 @@ const clearSignature = () => {
 // NOVA FUNÇÃO: Transforma o desenho numa imagem Base64
 // -------------------------------------------------------------
 // Adicione esta função dentro do <script setup> do seu AssinaturaPad.vue
+
+// ... todo o seu código anterior ...
+
 const extrairImagem = () => {
   const canvas = document.getElementById(`canvas-${props.id}`)
   if (!canvas) return null
-  // Retorna a imagem em Base64
   return hasSigned.value ? canvas.toDataURL('image/png') : null
 }
 
-// Garanta que o defineExpose está assim:
-defineExpose({ hasSigned, extrairImagem })
-
-// -------------------------------------------------------------
-// EXPORTAÇÃO PARA O COMPONENTE PAI (ChecklistForm)
-// -------------------------------------------------------------
-// Agora expomos o estado 'hasSigned' E a função 'extrairImagem'
+// ÚNICA CHAMADA: Garanta que esta é a única no arquivo
 defineExpose({
   hasSigned,
   extrairImagem,

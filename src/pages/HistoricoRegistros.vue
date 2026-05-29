@@ -1,56 +1,62 @@
 <template>
-  <q-page class="q-pa-md bg-grey-10 text-white">
-    <div class="row items-center q-mb-lg">
-      <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.back()" />
-      <div class="text-h6 text-weight-bold text-uppercase text-orange-8 q-ml-sm">
-        Histórico Offline - {{ tituloSetor }}
+  <q-page class="q-pa-lg bg-grey-10 text-white">
+    <div class="row items-center justify-between q-mb-md">
+      <div class="row items-center">
+        <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.back()" />
+        <div class="text-h6 text-uppercase text-orange-8 q-ml-sm">Histórico: {{ tituloSetor }}</div>
       </div>
     </div>
 
-    <q-card class="bg-grey-9 shadow-3" style="border-radius: 12px; border: 1px solid #424242">
-      <q-list separator dark>
-        <q-item v-if="checklists.length === 0" class="q-pa-md text-center text-grey-5">
-          Nenhum registo guardado para o setor {{ tituloSetor }}.
-        </q-item>
+    <q-input
+      v-model="filtro"
+      dark
+      outlined
+      dense
+      placeholder="Pesquisar por cliente ou equipamento..."
+      bg-color="grey-9"
+      color="orange-8"
+      class="q-mb-md"
+    >
+      <template v-slot:prepend>
+        <q-icon name="search" color="orange-8" />
+      </template>
+    </q-input>
 
-        <q-item v-for="chk in checklists" :key="chk.id" class="q-py-md">
+    <q-card class="bg-grey-9 shadow-3" style="border-radius: 12px">
+      <q-list separator dark>
+        <q-item v-for="chk in listaFiltrada" :key="chk.id" class="q-py-md">
           <q-item-section avatar>
-            <q-avatar color="orange-8" text-color="white" icon="offline_pin" />
+            <q-avatar color="grey-8" text-color="orange-8" icon="description" />
           </q-item-section>
 
           <q-item-section>
-            <q-item-label class="text-weight-bold text-white">
-              {{ chk.formulario?.cliente || chk.cliente || 'Sem Nome' }}
-              {{ chk.nomeMaquina ? '- ' + chk.nomeMaquina : '' }}
-            </q-item-label>
-            <q-item-label caption class="text-grey-4">
-              Data: {{ formatarData(chk.dataCriacao) }}
-            </q-item-label>
-            <q-item-label caption class="text-grey-5">
-              Modelo: {{ chk.formulario?.modelo || 'N/A' }} | Série:
-              {{ chk.formulario?.serie || 'N/A' }}
-            </q-item-label>
+            <q-item-label class="text-weight-bold">{{
+              chk.formulario?.cliente || 'Cliente não identificado'
+            }}</q-item-label>
+            <q-item-label caption class="text-grey-4"
+              >{{ chk.nomeMaquina }} - {{ formatarData(chk.dataCriacao) }}</q-item-label
+            >
           </q-item-section>
 
           <q-item-section side>
-            <div class="row q-gutter-sm">
-              <q-btn
-                outline
-                round
-                color="red-5"
-                icon="delete"
-                size="sm"
-                @click="excluirRegisto(chk.id)"
-              />
-              <q-btn
-                outline
-                color="orange-8"
-                icon="picture_as_pdf"
-                label="Ver PDF"
-                size="sm"
-                @click="abrirPDF(chk)"
-              />
-            </div>
+            <q-btn-dropdown flat color="orange-8" icon="more_vert">
+              <q-list dark style="min-width: 150px">
+                <q-item clickable v-close-popup @click="abrirPDF(chk)">
+                  <q-item-section avatar><q-icon name="visibility" /></q-item-section>
+                  <q-item-section>Visualizar</q-item-section>
+                </q-item>
+
+                <q-item clickable v-close-popup @click="compartilharChecklist(chk)">
+                  <q-item-section avatar><q-icon name="share" /></q-item-section>
+                  <q-item-section>Compartilhar</q-item-section>
+                </q-item>
+
+                <q-item clickable v-close-popup @click="excluirRegisto(chk.id)" class="text-red">
+                  <q-item-section avatar><q-icon name="delete" /></q-item-section>
+                  <q-item-section>Excluir</q-item-section>
+                </q-item>
+              </q-list>
+            </q-btn-dropdown>
           </q-item-section>
         </q-item>
       </q-list>
@@ -59,25 +65,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue' // Apenas um import destes
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import localforage from 'localforage'
-
-// Aqui importamos o nosso gerador de PDF (mais tarde poderá importar os de outros setores)
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 
 const $q = useQuasar()
 const route = useRoute()
-const checklists = ref([])
+const filtro = ref('')
+const checklists = ref([]) // Apenas uma definição
 
-// 1. Descobrimos qual é o setor olhando para o URL (ex: 'comercial', 'pos-venda')
+// 1. Pega o setor da URL. Ex: '/inicio/historico/comercial' -> setorAtual = 'comercial'
 const setorAtual = route.params.setor || 'geral'
 
-// 2. Criamos o nome da "gaveta" na memória onde estão os ficheiros (ex: 'historico_comercial')
+// 2. Define a chave de busca
 const chaveArmazenamento = `historico_${setorAtual}`
 
-// 3. Título bonito para mostrar no ecrã
 const tituloSetor = computed(() => {
   return setorAtual.charAt(0).toUpperCase() + setorAtual.slice(1).replace('-', ' ')
 })
@@ -89,12 +93,10 @@ onMounted(async () => {
 const carregarHistoricoOffline = async () => {
   $q.loading.show({ message: 'A carregar ficheiros...' })
   try {
-    // Procura dinamicamente a chave correspondente ao setor!
     const dadosLocais = await localforage.getItem(chaveArmazenamento)
     checklists.value = dadosLocais || []
   } catch (error) {
     console.error('Erro ao buscar histórico:', error)
-    $q.notify({ message: 'Erro ao carregar o histórico local', color: 'red' })
   } finally {
     $q.loading.hide()
   }
@@ -145,5 +147,30 @@ const formatarData = (dataIso) => {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+const listaFiltrada = computed(() => {
+  const f = filtro.value.toLowerCase()
+  return checklists.value.filter(
+    (chk) =>
+      chk.formulario?.cliente?.toLowerCase().includes(f) ||
+      chk.nomeMaquina?.toLowerCase().includes(f),
+  )
+})
+
+// Lógica de Compartilhamento via Web Share API
+const compartilharChecklist = async (chk) => {
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Checklist Dinâmica',
+        text: `Relatório de ${chk.formulario?.cliente}`,
+        url: window.location.href, // Aqui futuramente pode enviar um link do seu PDF
+      })
+    } catch (err) {
+      console.error('Erro ao compartilhar', err)
+    }
+  } else {
+    $q.notify('O seu dispositivo não suporta compartilhamento direto.')
+  }
 }
 </script>

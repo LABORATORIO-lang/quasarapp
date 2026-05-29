@@ -17,6 +17,7 @@
       style="border-radius: 12px; border: 1px solid #424242"
     >
       <q-card-section class="q-gutter-y-md">
+        <!-- Cliente (Ocupa a largura total) -->
         <q-input
           v-model="formulario.cliente"
           label="Nome do Cliente"
@@ -26,6 +27,8 @@
           color="orange-8"
           @update:model-value="temAlteracoes = true"
         />
+
+        <!-- Linha 1: Cidade e Data -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -51,6 +54,8 @@
             />
           </div>
         </div>
+
+        <!-- Linha 2: Marca e Modelo -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -75,6 +80,8 @@
             />
           </div>
         </div>
+
+        <!-- Linha 3: Série e Horímetro -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -92,6 +99,22 @@
               v-model="formulario.horimetro"
               type="number"
               label="Horímetro"
+              dark
+              outlined
+              dense
+              color="orange-8"
+              @update:model-value="temAlteracoes = true"
+            />
+          </div>
+        </div>
+
+        <!-- Linha 4: Ano (Fica alinhado perfeitamente abaixo) -->
+        <div class="row">
+          <div class="col-6">
+            <q-input
+              v-model="formulario.ano"
+              type="number"
+              label="Ano de Fabricação"
               dark
               outlined
               dense
@@ -300,6 +323,9 @@ import AssinaturaPad from 'src/components/AssinaturaPad.vue'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 import { redimensionarImagem } from 'src/utils/imageUtils'
 
+const assinaturaVendedorRef = ref(null)
+const assinaturaClienteRef = ref(null)
+const assinaturaTecnicoRef = ref(null)
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
@@ -317,9 +343,6 @@ const statusAssinatura = ref({
 })
 
 // Refs
-const assinaturaVendedorRef = ref(null)
-const assinaturaClienteRef = ref(null)
-const assinaturaTecnicoRef = ref(null)
 
 const nomeMaquina = ref('')
 const itens = ref([])
@@ -331,6 +354,7 @@ const formulario = ref({
   marca: '',
   modelo: '',
   serie: '',
+  ano: '',
   horimetro: '',
 })
 
@@ -388,16 +412,72 @@ const abrirAssinatura = (tipo) => {
 }
 
 const confirmarAssinatura = () => {
+  // --- VALIDAÇÕES DO VENDEDOR ---
   if (tipoAssinatura.value === 'Vendedor') {
-    statusAssinatura.value.vendedor = assinaturaVendedorRef.value?.hasSigned || false
-  } else if (tipoAssinatura.value === 'Cliente') {
-    statusAssinatura.value.cliente = assinaturaClienteRef.value?.hasSigned || false
-  } else if (tipoAssinatura.value === 'Tecnico') {
-    statusAssinatura.value.tecnico = assinaturaTecnicoRef.value?.hasSigned || false
+    if (!assinaturas.value.vendedorNome || !assinaturas.value.vendedorNome.trim()) {
+      return $q.notify({
+        message: 'Digite o nome do Vendedor antes de confirmar!',
+        color: 'orange-8',
+        icon: 'warning',
+      })
+    }
+    if (!assinaturaVendedorRef.value?.hasSigned) {
+      return $q.notify({
+        message: 'O desenho da assinatura é obrigatório!',
+        color: 'red-8',
+        icon: 'draw',
+      })
+    }
+
+    statusAssinatura.value.vendedor = true
+    assinaturas.value.vendedorImagem = assinaturaVendedorRef.value.extrairImagem()
   }
+
+  // --- VALIDAÇÕES DO CLIENTE ---
+  else if (tipoAssinatura.value === 'Cliente') {
+    if (!assinaturas.value.clienteNome || !assinaturas.value.clienteNome.trim()) {
+      return $q.notify({
+        message: 'Digite o nome do Cliente antes de confirmar!',
+        color: 'orange-8',
+        icon: 'warning',
+      })
+    }
+    if (!assinaturaClienteRef.value?.hasSigned) {
+      return $q.notify({
+        message: 'O desenho da assinatura é obrigatório!',
+        color: 'red-8',
+        icon: 'draw',
+      })
+    }
+
+    statusAssinatura.value.cliente = true
+    assinaturas.value.clienteImagem = assinaturaClienteRef.value.extrairImagem()
+  }
+
+  // --- VALIDAÇÕES DO TÉCNICO ---
+  else if (tipoAssinatura.value === 'Tecnico') {
+    if (!assinaturas.value.tecnicoNome || !assinaturas.value.tecnicoNome.trim()) {
+      return $q.notify({
+        message: 'Digite o nome do Técnico antes de confirmar!',
+        color: 'orange-8',
+        icon: 'warning',
+      })
+    }
+    if (!assinaturaTecnicoRef.value?.hasSigned) {
+      return $q.notify({
+        message: 'O desenho da assinatura é obrigatório!',
+        color: 'red-8',
+        icon: 'draw',
+      })
+    }
+
+    statusAssinatura.value.tecnico = true
+    assinaturas.value.tecnicoImagem = assinaturaTecnicoRef.value.extrairImagem()
+  }
+
+  // Se passou por todas as validações (nome preenchido E tela desenhada), a janela fecha!
   showAssinaturaDialog.value = false
 }
-
 // Funções de Fotos Gerais
 const abrirCameraFotoGeral = (pos) => {
   posAtual.value = pos
@@ -482,28 +562,14 @@ const salvarChecklist = async () => {
   }
 
   // 4. Executar Salvamento
+  // 4. Executar Salvamento
   try {
     $q.loading.show({ message: 'Processando...' })
 
-    // ---> NOVO CÓDIGO: Extrair a imagem (Base64) de cada assinatura <---
-    // A maioria das bibliotecas de assinatura usa o método saveSignature()
+    // Já não precisamos tentar extrair as imagens aqui,
+    // porque a função confirmarAssinatura já as guardou em assinaturas.value!
 
-    const imgVendedor = assinaturaVendedorRef.value?.extrairImagem
-      ? assinaturaVendedorRef.value.extrairImagem()
-      : null
-    const imgCliente = assinaturaClienteRef.value?.extrairImagem
-      ? assinaturaClienteRef.value.extrairImagem()
-      : null
-
-    const imgTecnico =
-      statusAssinatura.value.tecnico && assinaturaTecnicoRef.value?.extrairImagem
-        ? assinaturaTecnicoRef.value.extrairImagem()
-        : null
-
-    // Adicionamos as imagens ao nosso objeto de assinaturas
-    assinaturas.value.vendedorImagem = imgVendedor
-    assinaturas.value.clienteImagem = imgCliente
-    assinaturas.value.tecnicoImagem = imgTecnico
+    console.log('BASE64 VENDEDOR GUARDADO:', assinaturas.value.vendedorImagem)
 
     const pacoteDeDados = JSON.parse(
       JSON.stringify({
@@ -511,7 +577,7 @@ const salvarChecklist = async () => {
         nomeMaquina: nomeMaquina.value,
         formulario: formulario.value,
         itens: itens.value,
-        assinaturas: assinaturas.value, // Agora leva os nomes E as imagens!
+        assinaturas: assinaturas.value, // As imagens já estão aqui dentro!
         fotosGerais: fotosGerais.value,
         dataCriacao: new Date().toISOString(),
       }),

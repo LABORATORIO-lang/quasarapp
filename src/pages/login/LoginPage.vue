@@ -1,12 +1,11 @@
 <template>
   <q-layout view="lHh Lpr lFf">
     <q-page-container>
-      <q-page class="flex flex-center bg-grey-10" style="background-color: #121212">
+      <q-page class="flex flex-center bg-grey-10">
         <div class="column q-pa-lg" style="width: 100%; max-width: 400px">
           <div class="row justify-center q-mb-xl">
             <q-img
               src="~assets/logo_empresa.png"
-              spinner-color="white"
               style="height: 140px; max-width: 480px"
               fit="contain"
             />
@@ -24,9 +23,9 @@
             class="q-mb-md"
             label-color="orange-8"
           >
-            <template v-slot:append>
-              <div class="text-caption text-grey-5">@dinamicamaquinas.com</div>
-            </template>
+            <template v-slot:append
+              ><div class="text-caption text-grey-5">@dinamicamaquinas.com</div></template
+            >
           </q-input>
 
           <q-input
@@ -58,27 +57,23 @@
             rounded
           />
 
+          <div v-if="temSessaoSalva" class="row justify-center q-mt-md">
+            <q-btn
+              flat
+              color="orange-8"
+              label="Acessar com Biometria"
+              icon="fingerprint"
+              @click="tentarLoginBiometrico"
+            />
+          </div>
+
           <div class="row justify-center q-mt-md">
             <q-btn
               flat
-              dark
-              dense
               color="grey-5"
               label="Esqueceu a senha?"
               @click="router.push('/forgot-password')"
               no-caps
-            />
-          </div>
-
-          <div class="row justify-center q-mt-xl">
-            <q-btn
-              flat
-              dark
-              color="orange-8"
-              label="Primeiro acesso? Crie sua conta"
-              @click="router.push('/register')"
-              no-caps
-              class="text-bold"
             />
           </div>
         </div>
@@ -88,12 +83,15 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth } from 'boot/firebase'
-// 1º AJUSTE: Adicionamos a função signOut na importação do firebase/auth
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth'
+import { signInWithEmailAndPassword } from 'firebase/auth'
 import { useQuasar } from 'quasar'
+import localforage from 'localforage'
+
+import { Capacitor } from '@capacitor/core'
+import { BiometricAuth } from '@aparajita/capacitor-biometric-auth'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -101,47 +99,127 @@ const router = useRouter()
 const email = ref('')
 const password = ref('')
 const isPasswordHidden = ref(true)
+const temSessaoSalva = ref(false)
+
+onMounted(async () => {
+  const sessao = await localforage.getItem('user_session')
+
+  if (sessao) {
+    temSessaoSalva.value = true
+
+    if (Capacitor.isNativePlatform()) {
+      setTimeout(() => {
+        tentarLoginBiometrico()
+      }, 500)
+    }
+  }
+})
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
-    $q.notify({ type: 'warning', message: 'Preencha todos os campos.' })
+    $q.notify({
+      type: 'warning',
+      message: 'Preencha todos os campos.',
+    })
     return
   }
 
-  const fullEmail = `${email.value.trim()}@dinamicamaquinas.com`
-  $q.loading.show({ message: 'Autenticando...' })
+  const sessaoSalva = await localforage.getItem('user_session')
+
+  if (
+    !navigator.onLine &&
+    sessaoSalva &&
+    sessaoSalva.email === `${email.value.trim()}@dinamicamaquinas.com`
+  ) {
+    $q.notify({
+      type: 'positive',
+      message: 'Modo Offline: Acesso permitido.',
+    })
+
+    router.push('/inicio')
+    return
+  }
+
+  $q.loading.show({
+    message: 'Autenticando...',
+  })
 
   try {
-    // 2º AJUSTE: Guardamos o resultado do login nesta variável "userCredential"
-    const userCredential = await signInWithEmailAndPassword(auth, fullEmail, password.value)
-    const user = userCredential.user
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      `${email.value.trim()}@dinamicamaquinas.com`,
+      password.value,
+    )
 
-    // 3º AJUSTE: A barreira de verificação do email!
-    if (!user.emailVerified) {
-      await signOut(auth) // Desloga imediatamente por segurança
-      $q.loading.hide() // Esconde a bolinha de carregamento
-
-      $q.notify({
-        type: 'warning',
-        message:
-          'Por favor, verifique seu email antes de fazer login. Verifique sua caixa de entrada ou spam.',
-        timeout: 5000,
+    if (userCredential.user.emailVerified) {
+      await localforage.setItem('user_session', {
+        email: userCredential.user.email,
       })
 
-      return // Interrompe o código aqui para não deixar ir para a tela de '/inicio'
+      $q.loading.hide()
+
+      $q.notify({
+        type: 'positive',
+        message: 'Login realizado com sucesso.',
+      })
+
+      router.push('/inicio')
+      return
     }
 
-    // Se o emailVerified for "true", o código passa direto e o login acontece normalmente
     $q.loading.hide()
-    $q.notify({ type: 'positive', message: 'Login realizado com sucesso!' })
+
+    $q.notify({
+      type: 'warning',
+      message: 'Confirme seu e-mail antes de acessar.',
+    })
+  } catch (error) {
+    console.error(error)
+
+    $q.loading.hide()
+
+    $q.notify({
+      type: 'negative',
+      message: 'Usuário ou senha inválidos.',
+    })
+  }
+}
+
+const tentarLoginBiometrico = async () => {
+  try {
+    if (!Capacitor.isNativePlatform()) {
+      return
+    }
+
+    const biometry = await BiometricAuth.checkBiometry()
+
+    if (!biometry.isAvailable) {
+      $q.notify({
+        type: 'warning',
+        message: 'Biometria não configurada neste dispositivo.',
+      })
+      return
+    }
+
+    await BiometricAuth.authenticate({
+      reason: 'Autentique-se para acessar o aplicativo',
+      cancelTitle: 'Cancelar',
+      allowDeviceCredential: true,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Autenticação biométrica realizada.',
+    })
+
     router.push('/inicio')
   } catch (error) {
-    $q.loading.hide()
-    let msgErro = 'Erro ao entrar: ' + error.message
-    if (error.code === 'auth/invalid-credential') {
-      msgErro = 'Usuário ou senha incorretos.'
-    }
-    $q.notify({ type: 'negative', message: msgErro })
+    console.error('Erro biometria:', error)
+
+    $q.notify({
+      type: 'negative',
+      message: 'Falha na autenticação biométrica.',
+    })
   }
 }
 </script>
