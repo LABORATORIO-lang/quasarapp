@@ -19,6 +19,7 @@ const routes = [
       // Rota inteligente para o Histórico (Agora dentro do MainLayout)
       // O :setor é uma variável. Se o usuário abrir /historico/comercial, 'setor' será 'comercial'
       // Dentro do seu arquivo routes.js, em children do /inicio:
+
       { path: 'historico/:setor', component: () => import('pages/HistoricoRegistros.vue') },
       // --- Rotas do Checklist (Setor Comercial) ---
       {

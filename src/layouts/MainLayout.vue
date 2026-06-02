@@ -71,11 +71,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue' // onMounted é usado aqui
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { auth, db } from 'boot/firebase' // db é usado aqui
+import { auth, db } from 'boot/firebase'
 import { signOut } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore' // doc e getDoc são usados aqui
+import { doc, getDoc } from 'firebase/firestore'
+import localforage from 'localforage' // <-- ADICIONADO: Importação para limpar a sessão
 
 const leftDrawerOpen = ref(false)
 const router = useRouter()
@@ -84,25 +85,48 @@ const router = useRouter()
 const userName = ref('Carregando...')
 const userEmail = ref('')
 
-// AQUI é onde o 'onMounted', 'db', 'doc' e 'getDoc' são usados:
+// Dentro do <script setup> do MainLayout.vue
 onMounted(async () => {
-  const user = auth.currentUser
-  if (user) {
-    userEmail.value = user.email || ''
+  // 1. AÇÃO IMEDIATA: Puxa do celular para mostrar o nome na hora
+  const sessao = await localforage.getItem('user_session')
 
-    try {
-      const docRef = doc(db, 'usuarios', user.uid)
-      const docSnap = await getDoc(docRef)
+  if (sessao && sessao.email) {
+    userEmail.value = sessao.email
 
-      if (docSnap.exists()) {
-        userName.value = docSnap.data().nome
-      } else {
-        userName.value = 'Usuário Dinâmica'
-      }
-    } catch (error) {
-      console.error('Erro ao buscar nome:', error)
-      userName.value = 'Usuário'
+    // Se já tivermos o nome salvo, usa ele. Se não, quebra o e-mail (ex: jackson@... vira Jackson)
+    if (sessao.nome) {
+      userName.value = sessao.nome
+    } else {
+      const emailName = sessao.email.split('@')[0]
+      userName.value = emailName.charAt(0).toUpperCase() + emailName.slice(1)
     }
+  }
+
+  // 2. AÇÃO EM SEGUNDO PLANO: Só faz isso se o celular tiver internet
+  if (navigator.onLine) {
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        userEmail.value = user.email || userEmail.value
+
+        try {
+          // Vai no banco de dados buscar o nome real
+          const docRef = doc(db, 'usuarios', user.uid)
+          const docSnap = await getDoc(docRef)
+
+          if (docSnap.exists()) {
+            userName.value = docSnap.data().nome
+
+            // Atualiza a memória do celular com o nome verdadeiro
+            await localforage.setItem('user_session', {
+              email: user.email,
+              nome: userName.value,
+            })
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados no Firebase:', error)
+        }
+      }
+    })
   }
 })
 
@@ -115,8 +139,23 @@ function navegar(path) {
   leftDrawerOpen.value = false
 }
 
+// <-- ADICIONADO: Função de logout corrigida -->
 async function logout() {
-  await signOut(auth)
-  router.push('/')
+  try {
+    // 1. O segredo para quebrar o loop: apagar a sessão salva no celular
+    await localforage.removeItem('user_session')
+
+    // 2. Desloga do Firebase apenas se o celular tiver internet
+    if (navigator.onLine) {
+      await signOut(auth)
+    }
+
+    // 3. Volta para a tela de Login usando 'replace' para não deixar voltar pela seta do celular
+    router.replace('/')
+  } catch (error) {
+    console.error('Erro ao sair:', error)
+    // Se der erro, joga para o login de qualquer jeito
+    router.replace('/')
+  }
 }
 </script>

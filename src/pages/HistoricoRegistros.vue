@@ -6,7 +6,15 @@
         <div class="text-h6 text-uppercase text-orange-8 q-ml-sm">Histórico: {{ tituloSetor }}</div>
       </div>
     </div>
+    <q-page class="q-pa-md">
+      <div v-if="checklists.length === 0" class="text-center text-grey">
+        Nenhum registo encontrado para {{ tituloSetor }} (Chave: {{ chaveArmazenamento }})
+      </div>
 
+      <div v-for="item in listaFiltrada" :key="item.id">
+        {{ item.formulario.cliente }}
+      </div>
+    </q-page>
     <q-input
       v-model="filtro"
       dark
@@ -65,77 +73,94 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue' // Apenas um import destes
+// ================= 1. IMPORTAÇÕES =================
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import localforage from 'localforage'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 
+// ================= 2. INICIALIZAÇÃO DE PLUGINS =================
 const $q = useQuasar()
 const route = useRoute()
+
+// ================= 3. ESTADOS (Variáveis Reativas) =================
+const checklists = ref([])
 const filtro = ref('')
-const checklists = ref([]) // Apenas uma definição
 
-// 1. Pega o setor da URL. Ex: '/inicio/historico/comercial' -> setorAtual = 'comercial'
-const setorAtual = route.params.setor || 'geral'
+// ================= 4. INTELIGÊNCIA DE ROTEAMENTO E ARMAZENAMENTO =================
 
-// 2. Define a chave de busca
-const chaveArmazenamento = `historico_${setorAtual}`
+const setorAtual = computed(() => route.params.setor || 'geral')
+const chaveArmazenamento = computed(() => `historico_${setorAtual.value}`)
 
 const tituloSetor = computed(() => {
-  return setorAtual.charAt(0).toUpperCase() + setorAtual.slice(1).replace('-', ' ')
+  return setorAtual.value.charAt(0).toUpperCase() + setorAtual.value.slice(1).replace('-', ' ')
 })
 
+// ================= 5. CICLO DE VIDA =================
 onMounted(async () => {
+  console.log('DEBUG: Página carregada. Setor:', setorAtual.value)
   await carregarHistoricoOffline()
 })
+
+// ================= 6. FUNÇÕES PRINCIPAIS =================
 
 const carregarHistoricoOffline = async () => {
   $q.loading.show({ message: 'A carregar ficheiros...' })
   try {
-    const dadosLocais = await localforage.getItem(chaveArmazenamento)
+    const dadosLocais = await localforage.getItem(chaveArmazenamento.value)
     checklists.value = dadosLocais || []
   } catch (error) {
     console.error('Erro ao buscar histórico:', error)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar os dados.' })
   } finally {
     $q.loading.hide()
   }
 }
 
-const abrirPDF = async (dadosDoRegisto) => {
-  $q.loading.show({ message: 'A processar PDF...' })
-  try {
-    // Esta inteligência permite-lhe no futuro gerar PDFs diferentes dependendo do setor
-    if (setorAtual === 'comercial') {
-      await gerarChecklistPdf(dadosDoRegisto)
-    } else if (setorAtual === 'pos-venda') {
-      // Quando criar o PDF do Pós-venda, chame-o aqui!
-      $q.notify({ message: 'PDF do Pós-Venda ainda em desenvolvimento.', color: 'info' })
-    } else {
-      await gerarChecklistPdf(dadosDoRegisto) // Fallback
-    }
-  } catch (error) {
-    console.error(error)
-    $q.notify({ message: 'Erro ao abrir o PDF', color: 'red' })
-  } finally {
-    $q.loading.hide()
+const listaFiltrada = computed(() => {
+  const textoPesquisa = filtro.value.toLowerCase()
+  return checklists.value.filter((chk) => {
+    const nomeCliente = chk.formulario?.cliente?.toLowerCase() || ''
+    const nomeMaquina = chk.nomeMaquina?.toLowerCase() || ''
+    return nomeCliente.includes(textoPesquisa) || nomeMaquina.includes(textoPesquisa)
+  })
+})
+
+/**
+ * NOVA LÓGICA DE VISUALIZAÇÃO DE PDF:
+ * Agora não precisamos de gerar o PDF novamente.
+ * Abrimos diretamente o que foi guardado no momento do salvamento.
+ */
+const abrirPDF = (registo) => {
+  if (registo.pdfFisico) {
+    // Abre o PDF que já foi "congelado" no momento do salvamento
+    const win = window.open('', '_blank')
+    win.document.write(
+      `<iframe src="${registo.pdfFisico}" style="width:100%; height:100%; border:none;"></iframe>`,
+    )
+  } else {
+    // Fallback: se por algum motivo o PDF não existir no registo, tenta gerar na hora
+    $q.notify({ message: 'A processar PDF de emergência...', color: 'info' })
+    gerarChecklistPdf(registo)
   }
 }
 
 const excluirRegisto = (id) => {
   $q.dialog({
     title: 'Confirmar Exclusão',
-    message: 'Tem a certeza que deseja apagar este registo do dispositivo?',
-    cancel: true,
+    message: 'Tem a certeza que deseja apagar este registo permanentemente?',
+    cancel: 'Cancelar',
     persistent: true,
-    ok: { color: 'red', label: 'Apagar' },
+    ok: { color: 'negative', label: 'Apagar' },
   }).onOk(async () => {
     checklists.value = checklists.value.filter((chk) => chk.id !== id)
-    // Atualiza a gaveta correta na memória
-    await localforage.setItem(chaveArmazenamento, checklists.value)
+    await localforage.setItem(chaveArmazenamento.value, checklists.value)
     $q.notify({ message: 'Registo removido do dispositivo.', color: 'positive' })
   })
 }
+
+// ================= 7. UTILITÁRIOS =================
 
 const formatarData = (dataIso) => {
   if (!dataIso) return '-'
@@ -148,29 +173,10 @@ const formatarData = (dataIso) => {
     minute: '2-digit',
   })
 }
-const listaFiltrada = computed(() => {
-  const f = filtro.value.toLowerCase()
-  return checklists.value.filter(
-    (chk) =>
-      chk.formulario?.cliente?.toLowerCase().includes(f) ||
-      chk.nomeMaquina?.toLowerCase().includes(f),
-  )
-})
 
-// Lógica de Compartilhamento via Web Share API
 const compartilharChecklist = async (chk) => {
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: 'Checklist Dinâmica',
-        text: `Relatório de ${chk.formulario?.cliente}`,
-        url: window.location.href, // Aqui futuramente pode enviar um link do seu PDF
-      })
-    } catch (err) {
-      console.error('Erro ao compartilhar', err)
-    }
-  } else {
-    $q.notify('O seu dispositivo não suporta compartilhamento direto.')
-  }
+  // Como agora o PDF é um Base64, o compartilhamento pode ser via a abertura do PDF
+  // que o próprio telemóvel saberá partilhar através do botão nativo do leitor de PDF.
+  abrirPDF(chk)
 }
 </script>

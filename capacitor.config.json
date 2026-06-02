@@ -1,7 +1,11 @@
 {
   "appId": "com.dinamicamaquinas.comercial",
   "appName": "Dinâmica Máquinas",
-  "webDir": "dist/spa",
+  "webDir": "/dist/spa",
   "bundledWebRuntime": false,
-  "backgroundColor": "#1D1D1D"
+  "backgroundColor": "#1D1D1D",
+  "server": {
+    "url": "http://192.168.0.104:9002/",
+    "cleartext": true
+  }
 }

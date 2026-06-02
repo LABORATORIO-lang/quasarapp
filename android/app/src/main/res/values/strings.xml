@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">dinamicaapp</string>
-    <string name="title_activity_main">dinamicaapp</string>
-    <string name="package_name">br.com.dinamica.checklist</string>
-    <string name="custom_url_scheme">br.com.dinamica.checklist</string>
+    <string name="app_name">Dinâmica Máquinas</string>
+    <string name="title_activity_main">Dinâmica Máquinas</string>
+    <string name="package_name">com.dinamicamaquinas.comercial</string>
+    <string name="custom_url_scheme">com.dinamicamaquinas.comercial</string>
 </resources>

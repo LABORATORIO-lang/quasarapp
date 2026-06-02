@@ -23,9 +23,9 @@
             class="q-mb-md"
             label-color="orange-8"
           >
-            <template v-slot:append
-              ><div class="text-caption text-grey-5">@dinamicamaquinas.com</div></template
-            >
+            <template v-slot:append>
+              <div class="text-caption text-grey-5">@dinamicamaquinas.com</div>
+            </template>
           </q-input>
 
           <q-input
@@ -57,16 +57,6 @@
             rounded
           />
 
-          <div v-if="temSessaoSalva" class="row justify-center q-mt-md">
-            <q-btn
-              flat
-              color="orange-8"
-              label="Acessar com Biometria"
-              icon="fingerprint"
-              @click="tentarLoginBiometrico"
-            />
-          </div>
-
           <div class="row justify-center q-mt-md">
             <q-btn
               flat
@@ -90,28 +80,20 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import { useQuasar } from 'quasar'
 import localforage from 'localforage'
 
-import { Capacitor } from '@capacitor/core'
-import { BiometricAuth } from '@aparajita/capacitor-biometric-auth'
-
 const $q = useQuasar()
 const router = useRouter()
 
 const email = ref('')
 const password = ref('')
 const isPasswordHidden = ref(true)
-const temSessaoSalva = ref(false)
 
+// Ao carregar a tela de login, verifica se já existe uma sessão salva
 onMounted(async () => {
   const sessao = await localforage.getItem('user_session')
 
   if (sessao) {
-    temSessaoSalva.value = true
-
-    if (Capacitor.isNativePlatform()) {
-      setTimeout(() => {
-        tentarLoginBiometrico()
-      }, 500)
-    }
+    // Se achou a sessão, faz o login automático (funciona offline e online)
+    router.push('/inicio')
   }
 })
 
@@ -124,101 +106,56 @@ const handleLogin = async () => {
     return
   }
 
-  const sessaoSalva = await localforage.getItem('user_session')
+  const emailFormatado = `${email.value.trim()}@dinamicamaquinas.com`
 
-  if (
-    !navigator.onLine &&
-    sessaoSalva &&
-    sessaoSalva.email === `${email.value.trim()}@dinamicamaquinas.com`
-  ) {
-    $q.notify({
-      type: 'positive',
-      message: 'Modo Offline: Acesso permitido.',
-    })
-
-    router.push('/inicio')
-    return
+  // 1. Lógica para quando tenta logar sem internet e por algum motivo não logou automático
+  if (!navigator.onLine) {
+    const sessaoSalva = await localforage.getItem('user_session')
+    if (sessaoSalva && sessaoSalva.email === emailFormatado) {
+      $q.notify({
+        type: 'positive',
+        message: 'Modo Offline: Acesso permitido.',
+      })
+      router.push('/inicio')
+      return
+    } else {
+      $q.notify({
+        type: 'negative',
+        message: 'Você está offline. Conecte-se para o primeiro acesso.',
+      })
+      return
+    }
   }
 
+  // 2. Lógica normal (Online via Firebase)
   $q.loading.show({
     message: 'Autenticando...',
   })
 
   try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      `${email.value.trim()}@dinamicamaquinas.com`,
-      password.value,
-    )
+    const userCredential = await signInWithEmailAndPassword(auth, emailFormatado, password.value)
 
     if (userCredential.user.emailVerified) {
+      // Salva a sessão para garantir o login automático na próxima vez (offline ou online)
       await localforage.setItem('user_session', {
         email: userCredential.user.email,
       })
 
       $q.loading.hide()
-
-      $q.notify({
-        type: 'positive',
-        message: 'Login realizado com sucesso.',
-      })
-
       router.push('/inicio')
-      return
+    } else {
+      $q.loading.hide()
+      $q.notify({
+        type: 'warning',
+        message: 'Confirme seu e-mail antes de acessar.',
+      })
     }
-
-    $q.loading.hide()
-
-    $q.notify({
-      type: 'warning',
-      message: 'Confirme seu e-mail antes de acessar.',
-    })
   } catch (error) {
     console.error(error)
-
     $q.loading.hide()
-
     $q.notify({
       type: 'negative',
       message: 'Usuário ou senha inválidos.',
-    })
-  }
-}
-
-const tentarLoginBiometrico = async () => {
-  try {
-    if (!Capacitor.isNativePlatform()) {
-      return
-    }
-
-    const biometry = await BiometricAuth.checkBiometry()
-
-    if (!biometry.isAvailable) {
-      $q.notify({
-        type: 'warning',
-        message: 'Biometria não configurada neste dispositivo.',
-      })
-      return
-    }
-
-    await BiometricAuth.authenticate({
-      reason: 'Autentique-se para acessar o aplicativo',
-      cancelTitle: 'Cancelar',
-      allowDeviceCredential: true,
-    })
-
-    $q.notify({
-      type: 'positive',
-      message: 'Autenticação biométrica realizada.',
-    })
-
-    router.push('/inicio')
-  } catch (error) {
-    console.error('Erro biometria:', error)
-
-    $q.notify({
-      type: 'negative',
-      message: 'Falha na autenticação biométrica.',
     })
   }
 }

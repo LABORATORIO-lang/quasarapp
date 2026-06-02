@@ -1,4 +1,4 @@
-package br.com.dinamica.checklist;
+package com.dinamicamaquinas.comercial;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -1,6 +1,5 @@
 <template>
   <q-page class="q-pa-md bg-grey-10 text-white">
-    <!-- CABEÇALHO -->
     <div class="row items-center q-mb-md">
       <q-btn flat round icon="arrow_back" color="orange-8" @click="verificarSaida" />
       <div class="text-h6 text-weight-bold text-uppercase text-orange-8 q-ml-sm">
@@ -8,7 +7,6 @@
       </div>
     </div>
 
-    <!-- DADOS DA MÁQUINA -->
     <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
       Dados da Máquina
     </div>
@@ -17,7 +15,6 @@
       style="border-radius: 12px; border: 1px solid #424242"
     >
       <q-card-section class="q-gutter-y-md">
-        <!-- Cliente (Ocupa a largura total) -->
         <q-input
           v-model="formulario.cliente"
           label="Nome do Cliente"
@@ -27,8 +24,6 @@
           color="orange-8"
           @update:model-value="temAlteracoes = true"
         />
-
-        <!-- Linha 1: Cidade e Data -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -54,8 +49,6 @@
             />
           </div>
         </div>
-
-        <!-- Linha 2: Marca e Modelo -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -80,8 +73,6 @@
             />
           </div>
         </div>
-
-        <!-- Linha 3: Série e Horímetro -->
         <div class="row q-col-gutter-sm">
           <div class="col-6">
             <q-input
@@ -107,8 +98,6 @@
             />
           </div>
         </div>
-
-        <!-- Linha 4: Ano (Fica alinhado perfeitamente abaixo) -->
         <div class="row">
           <div class="col-6">
             <q-input
@@ -126,7 +115,6 @@
       </q-card-section>
     </q-card>
 
-    <!-- FOTOS GERAIS -->
     <div class="text-subtitle2 text-weight-bold text-grey-5 text-uppercase q-mb-sm q-ml-xs">
       Fotos Gerais (Obrigatório)
     </div>
@@ -184,7 +172,6 @@
       @change="processarFotoGeral"
     />
 
-    <!-- ITENS DE VERIFICAÇÃO -->
     <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
       Itens de Verificação
     </div>
@@ -202,155 +189,152 @@
       />
     </q-card>
 
-    <!-- VALIDAÇÃO E ASSINATURAS (Apenas com os botões limpos) -->
     <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
       Validação e Assinaturas
     </div>
+
     <q-card
-      class="bg-grey-9 shadow-3 q-mb-lg q-pa-md"
+      class="bg-grey-9 shadow-3 q-mb-lg"
       style="border-radius: 12px; border: 1px solid #424242"
     >
-      <q-btn
-        :color="statusAssinatura.vendedor ? 'green' : 'orange-8'"
-        :label="statusAssinatura.vendedor ? 'Vendedor: Assinado' : 'Assinar Vendedor (Obrigatório)'"
-        :icon="statusAssinatura.vendedor ? 'check_circle' : 'edit'"
-        @click="abrirAssinatura('Vendedor')"
-        class="full-width q-mb-sm"
-      />
+      <q-card-section class="q-gutter-y-md q-pa-md">
+        <!-- Repetição para cada tipo de assinante -->
+        <div
+          v-for="(item, index) in [
+            { key: 'vendedor', label: 'Vendedor(a):', icon: 'badge' },
+            { key: 'cliente', label: 'Cliente:', icon: 'person' },
+            { key: 'tecnico', label: 'técnico(a): (Opicional)', icon: 'engineering' },
+          ]"
+          :key="index"
+        >
+          <div class="row items-center q-col-gutter-sm">
+            <!-- Campo de Nome -->
+            <div class="col">
+              <q-input
+                v-model="assinaturas[item.key + 'Nome']"
+                :label="'Nome do ' + item.label"
+                dark
+                outlined
+                dense
+                color="orange-8"
+                @update:model-value="temAlteracoes = true"
+              />
+            </div>
 
-      <q-btn
-        :color="statusAssinatura.cliente ? 'green' : 'orange-8'"
-        :label="statusAssinatura.cliente ? 'Cliente: Assinado' : 'Assinar Cliente (Obrigatório)'"
-        :icon="statusAssinatura.cliente ? 'check_circle' : 'edit'"
-        @click="abrirAssinatura('Cliente')"
-        class="full-width q-mb-sm"
-      />
+            <!-- Botão de Ação -->
+            <div class="col-shrink">
+              <q-btn
+                :color="assinaturas[item.key + 'Imagem'] ? 'green' : 'orange-8'"
+                dense
+                padding="sm md"
+                icon="edit_square"
+                @click="abrirDialogAssinatura(item.key)"
+              >
+                <q-tooltip>Coletar assinatura de {{ item.label }}</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
 
-      <div class="q-mt-md">
-        <q-btn
-          :color="statusAssinatura.tecnico ? 'green' : 'grey-7'"
-          :label="statusAssinatura.tecnico ? 'Técnico: Assinado' : 'Assinar Técnico (Opcional)'"
-          :icon="statusAssinatura.tecnico ? 'check_circle' : 'engineering'"
-          @click="abrirAssinatura('Tecnico')"
-          class="full-width"
-          outline
-        />
-        <div class="text-caption text-grey-5 text-center q-mt-xs">
-          *O campo do técnico não é obrigatório para salvar o PDF.
+          <!-- Linha separadora, exceto no último item -->
+          <q-separator v-if="index < 2" color="grey-8" class="q-mt-sm" />
         </div>
-      </div>
+      </q-card-section>
     </q-card>
+
+    <q-dialog v-model="dialogAssinaturaAberto" persistent maximized @show="initCanvas">
+      <q-card class="bg-grey-9 text-white column full-height">
+        <!-- CABEÇALHO E CAMPO DE NOME (Onde o utilizador digita primeiro) -->
+        <q-card-section class="col-shrink">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 text-orange-8">{{ tituloAssinaturaAtual }}</div>
+            <q-btn flat round dense icon="close" color="grey-5" @click="fecharDialogAssinatura" />
+          </div>
+        </q-card-section>
+
+        <!-- ÁREA DE ASSINATURA -->
+        <q-card-section class="col relative-position q-pa-md flex">
+          <div class="signature-container bg-grey-1 fit shadow-5">
+            <canvas
+              ref="canvasRef"
+              @mousedown="startDrawing"
+              @mousemove="draw"
+              @mouseup="stopDrawing"
+              @mouseleave="stopDrawing"
+              @touchstart="startDrawingTouch"
+              @touchmove="drawTouch"
+              @touchend="stopDrawing"
+            />
+            <q-btn
+              round
+              dense
+              flat
+              icon="delete"
+              color="red"
+              class="clear-sig-btn"
+              @click="clearSignature"
+            />
+          </div>
+        </q-card-section>
+
+        <!-- BOTÕES -->
+        <q-card-section class="col-shrink row q-col-gutter-sm">
+          <div class="col-6">
+            <q-btn
+              outline
+              label="Cancelar"
+              color="grey-4"
+              icon="close"
+              class="full-width"
+              @click="fecharDialogAssinatura"
+            />
+          </div>
+          <div class="col-6">
+            <q-btn
+              color="green"
+              icon="check"
+              label="Confirmar"
+              class="full-width text-weight-bold"
+              @click="confirmarAssinaturaDialog"
+            />
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <q-btn
       color="orange-8"
       label="Salvar e Gerar PDF"
       icon="save"
-      @click="salvarChecklist"
       class="full-width q-mb-xl"
+      size="lg"
+      @click="salvarChecklistNoTelemovel"
     />
-
-    <!-- MODAL DE ASSINATURA (Onde os traços são realmente desenhados) -->
-    <q-dialog
-      v-model="showAssinaturaDialog"
-      maximized
-      persistent
-      transition-show="slide-up"
-      transition-hide="slide-down"
-    >
-      <q-card class="bg-grey-10 text-white">
-        <q-card-section class="row items-center">
-          <div class="text-h6 text-orange-8">Assinar como: {{ tipoAssinatura }}</div>
-          <q-space />
-          <q-btn icon="close" flat round dense @click="showAssinaturaDialog = false" />
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <div v-show="tipoAssinatura === 'Vendedor'">
-            <AssinaturaPad
-              id="vendedor"
-              label="Nome do Vendedor"
-              v-model:nome="assinaturas.vendedorNome"
-              ref="assinaturaVendedorRef"
-              @alteracao="temAlteracoes = true"
-            />
-          </div>
-          <div v-show="tipoAssinatura === 'Cliente'">
-            <AssinaturaPad
-              id="cliente"
-              label="Nome do Cliente"
-              v-model:nome="assinaturas.clienteNome"
-              ref="assinaturaClienteRef"
-              @alteracao="temAlteracoes = true"
-            />
-          </div>
-          <div v-show="tipoAssinatura === 'Tecnico'">
-            <AssinaturaPad
-              id="tecnico"
-              label="Nome do Técnico"
-              v-model:nome="assinaturas.tecnicoNome"
-              ref="assinaturaTecnicoRef"
-              @alteracao="temAlteracoes = true"
-            />
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="center" class="q-pa-md">
-          <q-btn
-            label="Confirmar Assinatura"
-            color="green"
-            icon="check"
-            @click="confirmarAssinatura"
-            class="full-width"
-            size="lg"
-          />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+// ================= 1. IMPORTAÇÕES E CONFIGURAÇÕES =================
+import { ref, onMounted, onUnmounted, nextTick, toRaw } from 'vue' // toRaw é usado aqui
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc } from 'firebase/firestore'
-import { db, auth } from 'src/boot/firebase'
-import { onAuthStateChanged } from 'firebase/auth'
+import { db } from 'src/boot/firebase'
 import localforage from 'localforage'
+import { gerarChecklistPdf } from 'src/utils/pdfGenerator' // IMPORTANTE: Verifica se este caminho está correto
 
-import ItemVerificacao from 'src/components/ItemVerificacao.vue'
-import AssinaturaPad from 'src/components/AssinaturaPad.vue'
-import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
-import { redimensionarImagem } from 'src/utils/imageUtils'
-
-const assinaturaVendedorRef = ref(null)
-const assinaturaClienteRef = ref(null)
-const assinaturaTecnicoRef = ref(null)
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 
-// Controle de Estado
-const temAlteracoes = ref(false)
-const showAssinaturaDialog = ref(false)
-const tipoAssinatura = ref('')
-const posAtual = ref('')
-
-const statusAssinatura = ref({
-  vendedor: false,
-  cliente: false,
-  tecnico: false,
-})
-
-// Refs
-
-const nomeMaquina = ref('')
-const itens = ref([])
+// ================= 2. ESTADOS DO FORMULÁRIO (Reatividade) =================
+const temAlteracoes = ref(false) // Controla se o utilizador já mexeu no formulário (útil para avisos ao sair)
+const nomeMaquina = ref('') // Título principal da máquina (buscado no Firebase)
+const itens = ref([]) // Lista de perguntas do checklist
 
 const formulario = ref({
   cliente: '',
   cidade: '',
-  data: new Date().toISOString().split('T')[0],
+  data: new Date().toISOString().split('T')[0], // Preenche com a data atual no formato AAAA-MM-DD
   marca: '',
   modelo: '',
   serie: '',
@@ -358,243 +342,325 @@ const formulario = ref({
   horimetro: '',
 })
 
-const assinaturas = ref({ vendedorNome: '', clienteNome: '', tecnicoNome: '' })
+// Gestão de Imagens Gerais (Fotos da Máquina)
 const fotosGerais = ref({ Frente: null, Direita: null, Traseira: null, Esquerda: null })
+const fotoGeralSelecionada = ref(null) // Guarda qual posição de foto está a ser tirada no momento
 
-let authListenerUnsubscribe = null
-
-onMounted(() => {
-  $q.loading.show({ message: 'A carregar sessão...' })
-  authListenerUnsubscribe = onAuthStateChanged(auth, (user) => {
-    if (user && user.displayName) {
-      assinaturas.value.vendedorNome = user.displayName
-    } else if (user && user.email) {
-      assinaturas.value.vendedorNome = user.email.split('@')[0]
-    }
-  })
-  if (auth.currentUser?.displayName) {
-    assinaturas.value.vendedorNome = auth.currentUser.displayName
-  }
-  carregarPerguntas()
+// ================= 3. ESTADOS DO CANVAS E ASSINATURAS =================
+const assinaturas = ref({
+  vendedorNome: '',
+  clienteNome: '',
+  tecnicoNome: '',
+  vendedorImagem: null,
+  clienteImagem: null,
+  tecnicoImagem: null,
 })
 
-onUnmounted(() => {
-  if (authListenerUnsubscribe) authListenerUnsubscribe()
-})
+const dialogAssinaturaAberto = ref(false)
+const tipoAssinaturaAtual = ref('') // 'vendedor', 'cliente' ou 'tecnico'
+const nomeAssinaturaAtual = ref('')
+const tituloAssinaturaAtual = ref('')
+const labelNomeAssinaturaAtual = ref('')
 
-const carregarPerguntas = async () => {
-  const tipoSelecionado = route.params.tipo
-  if (!tipoSelecionado) return router.push('/inicio/comercial/checklist/selecionar')
+const canvasRef = ref(null) // Referência ao elemento <canvas> no HTML
+const isDrawing = ref(false) // Indica se o dedo/rato está a pressionar a tela
+const hasSigned = ref(false) // Valida se algum traço foi feito no canvas
+let lastX = 0
+let lastY = 0
+
+// Memoriza a largura da tela para evitar que o canvas se apague ao abrir o teclado no telemóvel
+let larguraAnterior = window.innerWidth
+
+// ================= 4. CICLO DE VIDA (Montagem e Desmontagem) =================
+onMounted(async () => {
+  // Escuta mudanças no tamanho da janela
+  window.addEventListener('resize', handleResize)
+
   try {
-    const docSnap = await getDoc(doc(db, 'modelos_checklists', tipoSelecionado))
-    if (docSnap.exists()) {
-      const data = docSnap.data()
-      nomeMaquina.value = data.nome || tipoSelecionado.replace('_', ' ')
-      itens.value = (data.itens || []).map((i) => ({
-        texto: i.texto,
-        tipo: i.tipo || 'YES_NO',
-        resposta: null,
-        observacao: '',
-        fotos: [],
-      }))
-    }
-  } catch (e) {
-    console.error(e)
+    $q.loading.show({ message: 'A carregar checklist...' })
+    await carregarPerguntas() // Busca o modelo correto no Firebase
+  } catch (error) {
+    console.error('Erro geral ao carregar a tela:', error)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar os dados.' })
   } finally {
     $q.loading.hide()
   }
-}
+})
 
-// Funções de Assinatura
-const abrirAssinatura = (tipo) => {
-  tipoAssinatura.value = tipo
-  showAssinaturaDialog.value = true
-}
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
-const confirmarAssinatura = () => {
-  // --- VALIDAÇÕES DO VENDEDOR ---
-  if (tipoAssinatura.value === 'Vendedor') {
-    if (!assinaturas.value.vendedorNome || !assinaturas.value.vendedorNome.trim()) {
-      return $q.notify({
-        message: 'Digite o nome do Vendedor antes de confirmar!',
-        color: 'orange-8',
-        icon: 'warning',
-      })
+/**
+ * Função inteligente de Redimensionamento:
+ * O teclado dos telemóveis altera a altura da janela, o que recriaria o canvas e apagaria a assinatura.
+ * Esta lógica garante que o canvas SÓ é recriado se a LARGURA mudar (ex: virar o telemóvel de lado).
+ */
+
+const handleResize = () => {
+  if (dialogAssinaturaAberto.value) {
+    const larguraAtual = window.innerWidth
+    if (larguraAtual !== larguraAnterior) {
+      initCanvas()
+      larguraAnterior = larguraAtual
     }
-    if (!assinaturaVendedorRef.value?.hasSigned) {
-      return $q.notify({
-        message: 'O desenho da assinatura é obrigatório!',
-        color: 'red-8',
-        icon: 'draw',
-      })
-    }
-
-    statusAssinatura.value.vendedor = true
-    assinaturas.value.vendedorImagem = assinaturaVendedorRef.value.extrairImagem()
-  }
-
-  // --- VALIDAÇÕES DO CLIENTE ---
-  else if (tipoAssinatura.value === 'Cliente') {
-    if (!assinaturas.value.clienteNome || !assinaturas.value.clienteNome.trim()) {
-      return $q.notify({
-        message: 'Digite o nome do Cliente antes de confirmar!',
-        color: 'orange-8',
-        icon: 'warning',
-      })
-    }
-    if (!assinaturaClienteRef.value?.hasSigned) {
-      return $q.notify({
-        message: 'O desenho da assinatura é obrigatório!',
-        color: 'red-8',
-        icon: 'draw',
-      })
-    }
-
-    statusAssinatura.value.cliente = true
-    assinaturas.value.clienteImagem = assinaturaClienteRef.value.extrairImagem()
-  }
-
-  // --- VALIDAÇÕES DO TÉCNICO ---
-  else if (tipoAssinatura.value === 'Tecnico') {
-    if (!assinaturas.value.tecnicoNome || !assinaturas.value.tecnicoNome.trim()) {
-      return $q.notify({
-        message: 'Digite o nome do Técnico antes de confirmar!',
-        color: 'orange-8',
-        icon: 'warning',
-      })
-    }
-    if (!assinaturaTecnicoRef.value?.hasSigned) {
-      return $q.notify({
-        message: 'O desenho da assinatura é obrigatório!',
-        color: 'red-8',
-        icon: 'draw',
-      })
-    }
-
-    statusAssinatura.value.tecnico = true
-    assinaturas.value.tecnicoImagem = assinaturaTecnicoRef.value.extrairImagem()
-  }
-
-  // Se passou por todas as validações (nome preenchido E tela desenhada), a janela fecha!
-  showAssinaturaDialog.value = false
-}
-// Funções de Fotos Gerais
-const abrirCameraFotoGeral = (pos) => {
-  posAtual.value = pos
-  document.getElementById('file-input-geral').click()
-}
-
-const processarFotoGeral = async (event) => {
-  const file = event.target.files[0]
-  if (!file) return
-
-  try {
-    const fotoProcessada = await redimensionarImagem(file)
-    fotosGerais.value[posAtual.value] = fotoProcessada
-    temAlteracoes.value = true
-  } catch (e) {
-    console.error('Erro ao processar imagem:', e)
-    $q.notify({ message: 'Erro ao processar a foto.', color: 'red' })
   }
 }
 
-const removerFotoGeral = (pos) => {
-  fotosGerais.value[pos] = null
+// ================= 5. LÓGICA DO CANVAS (Desenho da Assinatura) =================
+const initCanvas = async () => {
+  await nextTick() // Aguarda o Vue desenhar o modal na tela
+  const canvas = canvasRef.value
+  if (!canvas) return
+
+  const rect = canvas.getBoundingClientRect()
+  const ratio = window.devicePixelRatio || 1
+
+  // Ajusta a resolução para ecrãs de alta densidade (Retina/Smartphones)
+  canvas.width = rect.width * ratio
+  canvas.height = rect.height * ratio
+
+  const ctx = canvas.getContext('2d')
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
+  ctx.strokeStyle = '#1a1a1a' // Cor da "caneta"
+  ctx.lineWidth = 2.5 // Espessura da linha
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+}
+
+const getPosition = (e) => {
+  const rect = canvasRef.value.getBoundingClientRect()
+  let clientX, clientY
+
+  // Lida tanto com toques (mobile) quanto com cliques (desktop)
+  if (e.touches && e.touches.length > 0) {
+    clientX = e.touches[0].clientX
+    clientY = e.touches[0].clientY
+  } else {
+    clientX = e.clientX
+    clientY = e.clientY
+  }
+
+  return { x: clientX - rect.left, y: clientY - rect.top }
+}
+
+const startDrawingTouch = (e) => {
+  if (e.touches.length === 1) startDrawing(e)
+}
+const drawTouch = (e) => {
+  if (e.touches.length === 1) draw(e)
+}
+
+const startDrawing = (e) => {
+  isDrawing.value = true
+  const pos = getPosition(e)
+  lastX = pos.x
+  lastY = pos.y
+}
+
+const draw = (e) => {
+  if (!isDrawing.value) return
+  const ctx = canvasRef.value.getContext('2d')
+  const pos = getPosition(e)
+
+  ctx.beginPath()
+  ctx.moveTo(lastX, lastY)
+  ctx.lineTo(pos.x, pos.y)
+  ctx.stroke()
+
+  lastX = pos.x
+  lastY = pos.y
+  hasSigned.value = true
   temAlteracoes.value = true
 }
 
-// Guardião de Navegação
-const verificarSaida = () => {
-  if (temAlteracoes.value) {
-    $q.dialog({
-      title: 'Atenção: Progresso não salvo',
-      message:
-        'Detetámos que preencheu dados neste checklist. Pretende guardar em "Em Andamento" antes de sair?',
-      persistent: true,
-      ok: { label: 'Sim, Guardar', color: 'positive' },
-      cancel: { label: 'Sair sem guardar', color: 'negative', flat: true },
-    })
-      .onOk(() => {
-        $q.notify({ type: 'positive', message: 'Rascunho guardado (Simulação)!' })
-        temAlteracoes.value = false
-        router.back()
-      })
-      .onCancel(() => {
-        temAlteracoes.value = false
-        router.back()
-      })
-  } else {
-    router.back()
+const stopDrawing = () => {
+  isDrawing.value = false
+}
+
+const clearSignature = () => {
+  const ctx = canvasRef.value.getContext('2d')
+  ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
+  hasSigned.value = false
+}
+
+// ================= 6. CONTROLE DO MODAL DE ASSINATURA =================
+const abrirDialogAssinatura = (tipo) => {
+  const nomes = { vendedor: 'vendedorNome', cliente: 'clienteNome', tecnico: 'tecnicoNome' }
+  const titulos = {
+    vendedor: 'Assinatura do Vendedor',
+    cliente: 'Assinatura do Cliente',
+    tecnico: 'Assinatura do Técnico',
+  }
+  const labels = {
+    vendedor: 'Nome do Vendedor',
+    cliente: 'Nome do Cliente',
+    tecnico: 'Nome do Técnico',
+  }
+
+  tipoAssinaturaAtual.value = tipo
+  nomeAssinaturaAtual.value = assinaturas.value[nomes[tipo]] || ''
+  tituloAssinaturaAtual.value = titulos[tipo]
+  labelNomeAssinaturaAtual.value = labels[tipo]
+
+  hasSigned.value = false
+  dialogAssinaturaAberto.value = true
+}
+
+const fecharDialogAssinatura = () => {
+  dialogAssinaturaAberto.value = false
+  tipoAssinaturaAtual.value = ''
+  nomeAssinaturaAtual.value = ''
+}
+
+const confirmarAssinaturaDialog = () => {
+  const tipo = tipoAssinaturaAtual.value
+
+  if (!hasSigned.value) {
+    $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
+    return
+  }
+
+  // Transforma o desenho numa imagem base64
+  const imagem = canvasRef.value.toDataURL('image/png')
+  const imagens = { vendedor: 'vendedorImagem', cliente: 'clienteImagem', tecnico: 'tecnicoImagem' }
+
+  assinaturas.value[imagens[tipo]] = imagem
+  fecharDialogAssinatura()
+  temAlteracoes.value = true
+  $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
+}
+
+// ================= 7. COMUNICAÇÃO COM FIREBASE (Perguntas) =================
+const carregarPerguntas = async () => {
+  const tipo = route.params.tipo // Identifica qual máquina foi clicada (ex: 'trator-x')
+
+  if (!tipo) {
+    nomeMaquina.value = 'Máquina Desconhecida'
+    return
+  }
+
+  try {
+    const docSnap = await getDoc(doc(db, 'modelos_checklists', tipo))
+    if (docSnap.exists()) {
+      const dados = docSnap.data()
+      nomeMaquina.value = dados.nome || tipo
+      if (dados.itens && Array.isArray(dados.itens)) {
+        // Mapeia os itens adicionando os campos necessários para a resposta
+        itens.value = dados.itens.map((i) => ({ ...i, resposta: null, observacao: '', fotos: [] }))
+      }
+    } else {
+      nomeMaquina.value = 'Modelo não encontrado'
+    }
+  } catch (e) {
+    console.error('Erro ao buscar Firebase:', e)
+    nomeMaquina.value = 'Erro ao carregar nome'
   }
 }
 
-// Salvamento Final
-const salvarChecklist = async () => {
-  // 1. Validar se o nome do cliente foi preenchido
-  if (!formulario.value.cliente) {
-    return $q.notify({
-      message: 'Preencha o nome do Cliente!',
-      color: 'orange-8',
-      icon: 'warning',
-    })
+// ================= 8. LÓGICA DE FOTOS GERAIS =================
+const abrirCameraFotoGeral = (posicao) => {
+  fotoGeralSelecionada.value = posicao
+  document.getElementById('file-input-geral')?.click()
+}
+
+const processarFotoGeral = (event) => {
+  const file = event.target.files[0]
+  const posicaoFoto = fotoGeralSelecionada.value
+
+  if (!file || !posicaoFoto) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    fotosGerais.value[posicaoFoto] = e.target.result // Guarda imagem em Base64
+    fotoGeralSelecionada.value = null
+    temAlteracoes.value = true
   }
+  reader.readAsDataURL(file)
+  event.target.value = '' // Limpa o input
+}
 
-  // 2. Validar assinaturas OBRIGATÓRIAS (Vendedor e Cliente apenas)
-  if (!statusAssinatura.value.vendedor || !statusAssinatura.value.cliente) {
-    return $q.notify({
-      message: 'As assinaturas do Vendedor e do Cliente são obrigatórias!',
-      color: 'red-8',
-      icon: 'warning',
-    })
-  }
+const removerFotoGeral = (posicao) => {
+  fotosGerais.value[posicao] = null
+  temAlteracoes.value = true
+}
 
-  // 3. Validar Fotos Gerais
-  const posicoes = ['Frente', 'Direita', 'Traseira', 'Esquerda']
-  const faltantes = posicoes.filter((pos) => !fotosGerais.value[pos])
-
-  if (faltantes.length > 0) {
-    return $q.notify({
-      message: `Fotos gerais obrigatórias! Faltam: ${faltantes.join(', ')}`,
-      color: 'red-8',
-      icon: 'camera_alt',
+const verificarFotosGerais = () => {
+  const temAlgumaFoto = Object.values(fotosGerais.value).some((foto) => foto !== null)
+  if (!temAlgumaFoto) {
+    $q.notify({
+      type: 'warning',
+      message: 'Atenção: Nenhuma foto geral da máquina foi tirada!',
       position: 'top',
     })
+    return false
   }
+  return true
+}
 
-  // 4. Executar Salvamento
-  // 4. Executar Salvamento
+// ================= 9. SALVAMENTO E NAVEGAÇÃO =================
+const verificarSaida = () => {
+  $q.dialog({
+    title: 'Atenção',
+    message: 'Deseja sair? Todo o progresso deste checklist será perdido.',
+    cancel: 'Não, continuar',
+    ok: 'Sim, sair',
+    persistent: true,
+  }).onOk(() => {
+    router.push('/') // Retorna à página inicial
+  })
+}
+
+/**
+ * Salva o checklist na memória do dispositivo.
+ * O código foi desenhado para ser UNIVERSAL, lendo o setor pela URL.
+ */
+const salvarChecklistNoTelemovel = async () => {
+  if (!formulario.value.cliente) {
+    $q.notify({ type: 'warning', message: 'Preenche o nome do cliente antes de salvar.' })
+    return
+  }
+  if (!verificarFotosGerais()) return
+
   try {
-    $q.loading.show({ message: 'Processando...' })
+    $q.loading.show({ message: 'A finalizar checklist...' })
 
-    // Já não precisamos tentar extrair as imagens aqui,
-    // porque a função confirmarAssinatura já as guardou em assinaturas.value!
+    const setor = route.params.setor || 'geral'
+    const chaveUnica = `historico_${setor}`
 
-    console.log('BASE64 VENDEDOR GUARDADO:', assinaturas.value.vendedorImagem)
-
-    const pacoteDeDados = JSON.parse(
-      JSON.stringify({
-        id: Date.now().toString(),
-        nomeMaquina: nomeMaquina.value,
-        formulario: formulario.value,
-        itens: itens.value,
-        assinaturas: assinaturas.value, // As imagens já estão aqui dentro!
-        fotosGerais: fotosGerais.value,
-        dataCriacao: new Date().toISOString(),
-      }),
-    )
-
-    if ($q.platform.is.capacitor) {
-      const historico = (await localforage.getItem('historico_comercial')) || []
-      historico.unshift(pacoteDeDados)
-      await localforage.setItem('historico_comercial', historico)
+    // 1. Criamos os dados que serão enviados para o PDF e para o localforage
+    const dadosParaSalvar = {
+      id: Date.now().toString(),
+      tipoMaquina: route.params.tipo || 'Desconhecido',
+      nomeMaquina: nomeMaquina.value,
+      dadosFormulario: formulario.value,
+      respostasChecklist: itens.value,
+      assinaturas: assinaturas.value,
+      fotosGerais: fotosGerais.value,
+      dataConclusao: new Date().toISOString(),
+      setor: setor,
     }
 
-    await gerarChecklistPdf(pacoteDeDados)
-    temAlteracoes.value = false
-    router.push('/inicio/comercial/checklist')
-  } catch (e) {
-    console.error(e)
-    $q.notify({ message: 'Erro ao processar checklist.', color: 'red-8' })
+    // 2. Geramos o PDF primeiro (baseado nos dados limpos)
+    const dadosLimpos = JSON.parse(JSON.stringify(toRaw(dadosParaSalvar)))
+    const arquivoPdfBase64 = await gerarChecklistPdf(dadosLimpos, true)
+
+    // 3. Adicionamos o PDF ao objeto final
+    const registoFinal = {
+      ...dadosLimpos,
+      pdfFisico: arquivoPdfBase64,
+    }
+
+    // 4. Salva no localforage
+    let checklistsAntigos = (await localforage.getItem(chaveUnica)) || []
+    checklistsAntigos.push(registoFinal)
+    await localforage.setItem(chaveUnica, checklistsAntigos)
+
+    $q.notify({ type: 'positive', message: 'Checklist finalizado e guardado!' })
+    router.push(`/inicio/historico/${setor}`)
+  } catch (error) {
+    console.error('DEBUG: Erro ao salvar:', error)
+    $q.notify({ type: 'negative', message: 'Erro ao guardar no telemóvel.' })
   } finally {
     $q.loading.hide()
   }
@@ -602,9 +668,65 @@ const salvarChecklist = async () => {
 </script>
 
 <style scoped>
-:deep(input::-webkit-outer-spin-button),
-:deep(input::-webkit-inner-spin-button) {
-  -webkit-appearance: none;
-  margin: 0;
+/* ESTILOS DA TELA DE ASSINATURA */
+.assinatura-dialog-card {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.assinatura-dialog-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 12px;
+  padding: 12px;
+}
+
+.assinatura-dialog-side {
+  width: 280px;
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.assinatura-dialog-pad {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* O "Papel" do canvas */
+.signature-container {
+  position: relative;
+  border: 2px solid #e65100;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.signature-container canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+.clear-sig-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+@media (orientation: portrait) {
+  .assinatura-dialog-layout {
+    flex-direction: column;
+  }
+  .assinatura-dialog-side {
+    width: 100%;
+    flex: 0 0 auto;
+  }
 }
 </style>

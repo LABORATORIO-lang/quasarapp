@@ -47,6 +47,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
+import localforage from 'localforage' // <-- IMPORTANTE: Adicionado para podermos aceder à memória
 
 const $q = useQuasar()
 const router = useRouter()
@@ -83,8 +84,14 @@ const carregarModelos = async () => {
   }
 }
 
-function iniciarChecklist(idModelo) {
-  // Redireciona passando o ID da máquina diretamente na URL
+// <-- AQUI ESTÁ A MÁGICA: Transformei em "async" e coloquei a vassoura
+const iniciarChecklist = async (idModelo) => {
+  // 1. A VASSOURA: Limpa as gavetas de assinaturas antigas
+  await localforage.removeItem('assinatura_vendedor')
+  await localforage.removeItem('assinatura_cliente')
+  await localforage.removeItem('assinatura_tecnico')
+
+  // 2. Agora sim, viaja para o checklist novinho em folha
   router.push(`/inicio/comercial/checklist/formulario/${idModelo}`)
 }
 
