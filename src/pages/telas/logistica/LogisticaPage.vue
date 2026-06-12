@@ -1,7 +1,123 @@
 <template>
-  <q-page> </q-page>
+  <q-page class="q-pa-lg text-white bg-grey-10">
+    <div class="q-mb-lg">
+      <div class="text-h5 text-weight-bold">Logística</div>
+      <div class="text-caption text-grey-5">Gerencie entregas e transportes</div>
+    </div>
+
+    <div class="column q-gutter-md">
+      <q-card
+        clickable
+        class="bg-grey-9 text-white custom-card"
+        style="border: 1px solid #333; border-radius: 8px"
+        @click="$router.push('/inicio/logistica/entregas')"
+      >
+        <q-card-section class="row items-center no-wrap">
+          <div class="relative-position">
+            <q-avatar size="48px" color="orange-8" text-color="black">
+              <q-icon name="local_shipping" size="28px" />
+            </q-avatar>
+
+            <q-badge
+              v-if="totalPendentes > 0"
+              color="red-7"
+              floating
+              rounded
+              class="text-weight-bold flex flex-center shadow-2 pulse-badge"
+              style="padding: 4px 6px; font-size: 11px; top: -4px; right: -4px"
+            >
+              {{ totalPendentes }}
+            </q-badge>
+          </div>
+
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold row items-center">Entregas Pendentes</div>
+            <div class="text-caption text-grey-5">
+              Máquinas vendidas aguardando entrega ao cliente
+            </div>
+          </div>
+
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
+    </div>
+  </q-page>
 </template>
 
 <script setup>
-// Lógica aqui
+import { ref, onMounted } from 'vue'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from 'src/boot/firebase'
+import localforage from 'localforage'
+
+// Estados Reativos
+const totalPendentes = ref(0)
+const minhaUnidade = ref('')
+
+/**
+ * Busca a quantidade de máquinas que estão aguardando entrega na filial do usuário
+ */
+const consultarEntregasPendentes = async () => {
+  try {
+    // 1. Pega os dados do usuário logado (Resolvendo inconsistência #11)
+    const sessao = await localforage.getItem('user_session')
+    if (sessao) {
+      minhaUnidade.value = sessao.unidade || sessao.cidade || ''
+    }
+
+    if (!minhaUnidade.value) {
+      console.warn('⚠️ Nenhuma unidade identificada na sessão do usuário.')
+      return
+    }
+
+    // 2. Monta a consulta no Firestore
+    // Filtra por máquinas cujo status seja aguardando e pertençam à unidade atual
+    const maquinasRef = collection(db, 'maquinas')
+    const q = query(
+      maquinasRef,
+      where('status', '==', 'aguardando_entrega_cliente'),
+      where('unidadeAtual', '==', 'Inbound_Unit_Placeholder'), // Placeholder para alinhar com a lógica do Firestore
+    )
+
+    const querySnapshot = await getDocs(q)
+
+    // 3. Atualiza o contador na tela
+    totalPendentes.value = querySnapshot.size
+    console.log(
+      `📦 Encontradas ${totalPendentes.value} entregas pendentes para a unidade ${minhaUnidade.value}`,
+    )
+  } catch (error) {
+    console.error('Erro ao contabilizar entregas pendentes:', error)
+  }
+}
+
+// Inicializa a consulta no ciclo de vida do componente
+onMounted(consultarEntregasPendentes)
 </script>
+
+<style scoped>
+.custom-card {
+  transition:
+    transform 0.2s,
+    border-color 0.2s;
+}
+.custom-card:hover {
+  border-color: #ff9800 !important;
+  transform: translateY(-1px);
+}
+
+/* Efeito sutil para chamar a atenção para o número de pendências */
+.pulse-badge {
+  box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.7);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  70% {
+    box-shadow: 0 0 0 6px rgba(211, 47, 47, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(211, 47, 47, 0);
+  }
+}
+</style>

@@ -12,107 +12,90 @@
       </div>
     </div>
 
-    <div class="row q-col-gutter-lg">
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="note_add" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Novo Checklist</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              Inicie uma nova vistoria do zero selecionando o equipamento.
+    <div class="column q-gutter-sm">
+      <q-card
+        clickable
+        class="compact-card bg-grey-9 text-white"
+        @click="router.push('/inicio/comercial/checklist/selecionar')"
+      >
+        <q-card-section class="row items-center no-wrap q-pa-sm">
+          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+            <q-icon name="note_add" size="20px" />
+          </q-avatar>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold text-orange-8">Novo Checklist</div>
+            <div class="text-caption text-grey-5">
+              Inicie uma nova vistoria selecionando o equipamento
             </div>
-          </q-card-section>
+          </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
 
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="INICIAR AGORA"
-              icon-right="add"
-              @click="router.push('/inicio/comercial/checklist/selecionar')"
-            />
-          </q-card-actions>
-        </q-card>
-      </div>
-
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="pending_actions" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Em Andamento</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              Continue relatórios e rascunhos que ainda não foram finalizados.
+      <q-card
+        clickable
+        class="compact-card bg-grey-9 text-white"
+        @click="router.push('/inicio/comercial/checklist/rascunhos')"
+      >
+        <q-card-section class="row items-center no-wrap q-pa-sm">
+          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+            <q-icon name="pending_actions" size="20px" />
+          </q-avatar>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold text-orange-8">Em Andamento</div>
+            <div class="text-caption text-grey-5">
+              Continue rascunhos que ainda não foram finalizados
             </div>
-          </q-card-section>
-
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="CONTINUAR"
-              icon-right="arrow_forward"
-              @click="router.push('/inicio/comercial/checklist/rascunhos')"
-            />
-          </q-card-actions>
-        </q-card>
-      </div>
-
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="history" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Histórico</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              Acesse checklists antigos, revisões e relatórios finalizados.
+          </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
+      <q-card
+        clickable
+        class="compact-card bg-grey-9 text-white"
+        @click="router.push('/inicio/historico/comercial')"
+      >
+        <q-card-section class="row items-center no-wrap q-pa-sm">
+          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+            <q-icon name="history" size="20px" />
+          </q-avatar>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold text-orange-8">Histórico</div>
+            <div class="text-caption text-grey-5">
+              Acesse checklists antigos e relatórios finalizados
             </div>
-          </q-card-section>
-
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="ACESSAR"
-              icon-right="arrow_forward"
-              @click="router.push('/inicio/historico/comercial')"
-            />
-          </q-card-actions>
-        </q-card>
-      </div>
+          </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
     </div>
   </q-page>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import localforage from 'localforage'
 
 const router = useRouter()
+const perfisUsuario = ref([])
+
+onMounted(async () => {
+  const sessao = await localforage.getItem('user_session')
+  if (sessao && sessao.perfis) {
+    perfisUsuario.value = sessao.perfis
+  }
+})
 </script>
 
 <style scoped>
-.custom-card {
-  border: 1px solid #424242;
-  border-radius: 12px;
-  overflow: hidden;
-  transition:
-    transform 0.2s,
-    border-color 0.2s;
-  height: 260px !important;
+.compact-card {
+  border: 1px solid #333;
+  border-radius: 8px;
+  transition: border-color 0.2s;
 }
 
-.custom-card:hover {
-  transform: translateY(-4px);
+.compact-card:hover {
   border-color: #ff9800;
 }
 

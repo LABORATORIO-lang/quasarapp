@@ -10,82 +10,115 @@
       </div>
     </div>
 
-    <div class="row q-col-gutter-lg">
+    <div class="row q-col-gutter-md">
       <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="assignment_turned_in" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Checklist</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              Realize vistorias em Máquinas Para negociação.
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="router.push('/inicio/comercial/checklist')"
+        >
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="assignment_turned_in" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">Checklist</div>
+                <div class="text-caption text-grey-5 card-description">
+                  Realize vistorias em Máquinas Para negociação.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="ACESSAR"
-              icon-right="arrow_forward"
-              @click="router.push('/inicio/comercial/checklist')"
-            />
-          </q-card-actions>
         </q-card>
       </div>
 
       <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="request_quote" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Consórcio</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              Calculo de Parcelas e Lances.
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="router.push('/inicio/comercial/consorcio')"
+        >
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="request_quote" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">Consórcio</div>
+                <div class="text-caption text-grey-5 card-description">
+                  Calculo de Parcelas e Lances.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="ACESSAR"
-              icon-right="arrow_forward"
-              @click="router.push('/comercial/consorcio')"
-            />
-          </q-card-actions>
         </q-card>
       </div>
 
       <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <q-avatar size="48px" color="grey-10" text-color="orange-8" class="q-mb-md icon-box">
-              <q-icon name="precision_manufacturing" />
-            </q-avatar>
-            <div class="text-h5 text-weight-bolder text-orange-8 q-mb-sm">Usados</div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              catálogo de máquinas seminovas.
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="router.push('/comercial/usados')"
+        >
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="precision_manufacturing" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">Usados</div>
+                <div class="text-caption text-grey-5 card-description">
+                  Catálogo de máquinas seminovas.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
           </q-card-section>
+        </q-card>
+      </div>
 
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="ACESSAR"
-              icon-right="arrow_forward"
-              @click="router.push('/comercial/usados')"
-            />
-          </q-card-actions>
+      <!-- Ver Estoque e Trânsito - só gerente_comercial e master -->
+      <div v-if="temAcesso('gerente_comercial')" class="col-12 col-sm-4">
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="router.push('/inicio/pos-venda/maquinas/estoque')"
+        >
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="inventory_2" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">
+                  Ver Estoque e Trânsito
+                </div>
+                <div class="text-caption text-grey-5 card-description">
+                  Visualize todas as máquinas no sistema.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
+            </div>
+          </q-card-section>
         </q-card>
       </div>
     </div>
@@ -93,28 +126,45 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import localforage from 'localforage'
 
 const router = useRouter()
+const perfisUsuario = ref([])
+
+const temAcesso = (perfil) => {
+  if (perfisUsuario.value.includes('master')) return true
+  return perfisUsuario.value.includes(perfil)
+}
+
+onMounted(async () => {
+  const sessao = await localforage.getItem('user_session')
+  if (sessao && sessao.perfis) {
+    perfisUsuario.value = sessao.perfis
+  }
+})
 </script>
 
 <style scoped>
 .custom-card {
-  border: 1px solid #424242;
-  border-radius: 12px;
-  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 8px;
   transition:
     transform 0.2s,
     border-color 0.2s;
-  height: 260px !important;
+  cursor: pointer;
 }
 
 .custom-card:hover {
-  transform: translateY(-4px);
   border-color: #ff9800;
 }
 
 .icon-box {
   border: 1px solid #ff9800;
+}
+
+.card-description {
+  line-height: 1.35;
 }
 </style>

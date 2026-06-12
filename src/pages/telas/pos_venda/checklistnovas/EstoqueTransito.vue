@@ -1,0 +1,210 @@
+<template>
+  <q-page class="q-pa-lg text-white bg-grey-10">
+    <div class="row items-center justify-between q-mb-md">
+      <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
+      <div class="text-h5 text-weight-bold">Estoque e Trânsito</div>
+    </div>
+
+    <!-- Abas Atualizadas (Adicionado o filtro de Entregas Pendentes) -->
+    <q-tabs
+      v-model="abaAtual"
+      dense
+      class="text-grey"
+      active-color="orange-8"
+      indicator-color="orange-8"
+      align="left"
+    >
+      <q-tab name="todos" label="Todas" />
+      <q-tab name="em_estoque" label="Em Estoque" />
+      <q-tab name="em_transito" label="Em Trânsito" />
+      <q-tab name="aguardando_entrega_cliente" label="Aguardando Entrega" />
+      <q-tab name="entregue" label="Entregues" />
+    </q-tabs>
+    <q-separator color="grey-8" class="q-mb-md" />
+
+    <!-- Tabela Principal -->
+    <q-table
+      :rows="maquinasFiltradas"
+      :columns="colunasVisiveis"
+      row-key="serie"
+      dark
+      flat
+      bordered
+      class="bg-grey-9"
+      no-data-label="Nenhuma máquina encontrada."
+      :loading="carregando"
+    >
+      <!-- Estilização das Badges de Status -->
+      <template v-slot:body-cell-status="props">
+        <q-td :props="props">
+          <q-badge :color="corDoStatus(props.row.status)" class="text-weight-bold q-pa-xs">
+            {{ formatarStatus(props.row.status) }}
+          </q-badge>
+        </q-td>
+      </template>
+
+      <!-- Exibição de Localização e Rota de Destino -->
+      <template v-slot:body-cell-unidade="props">
+        <q-td :props="props">
+          {{ props.row.unidadeAtual }}
+          <div v-if="props.row.status === 'em_transito'" class="text-caption text-orange">
+            ➝ Destino: {{ props.row.unidadeDestino }}
+          </div>
+          <div
+            v-if="props.row.status === 'aguardando_entrega_cliente' && props.row.cliente"
+            class="text-caption text-grey-4"
+          >
+            ➝ Cliente: {{ props.row.cliente }}
+          </div>
+        </q-td>
+      </template>
+
+      <!-- Botões de Ações Administrativas -->
+      <template v-slot:body-cell-acoes="props">
+        <q-td :props="props">
+          <q-btn
+            v-if="props.row.status === 'em_estoque'"
+            size="sm"
+            flat
+            round
+            icon="edit_note"
+            color="orange-8"
+            @click="editarChecklist(props.row)"
+          >
+            <q-tooltip class="bg-grey-9 text-orange-8">Editar Checklist</q-tooltip>
+          </q-btn>
+          <q-btn
+            size="sm"
+            flat
+            round
+            icon="history"
+            color="grey-4"
+            @click="verHistoricoSerie(props.row.serie)"
+          >
+            <q-tooltip class="bg-grey-9 text-white">Ver Histórico</q-tooltip>
+          </q-btn>
+        </q-td>
+      </template>
+    </q-table>
+  </q-page>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
+import { db } from 'src/boot/firebase'
+import { useQuasar } from 'quasar'
+import { useRouter } from 'vue-router'
+import localforage from 'localforage'
+
+const $q = useQuasar()
+const router = useRouter()
+const abaAtual = ref('todos')
+const maquinas = ref([])
+const carregando = ref(false)
+const unidadeUsuario = ref('')
+const perfisUsuario = ref([])
+
+// Configuração das Colunas da Tabela
+const colunas = [
+  { name: 'serie', align: 'left', label: 'Nº Série', field: 'serie', sortable: true },
+  { name: 'modelo', align: 'left', label: 'Modelo', field: 'modelo', sortable: true },
+  { name: 'unidade', align: 'left', label: 'Localização', field: 'unidadeAtual' },
+  { name: 'status', align: 'center', label: 'Status', field: 'status' },
+  { name: 'acoes', align: 'center', label: 'Ações', field: 'serie' },
+]
+
+// Filtro de colunas baseado no perfil de acesso do usuário
+const colunasVisiveis = computed(() => {
+  if (perfisUsuario.value.includes('master') || perfisUsuario.value.includes('adm_pos_venda')) {
+    return colunas
+  }
+  // Vendedores ou técnicos comuns também visualizam o botão de histórico adicionado
+  return colunas
+})
+
+const editarChecklist = (maquina) => {
+  router.push({
+    path: '/inicio/pos-venda/maquinas/editar-checklist',
+    query: { serie: maquina.serie },
+  })
+}
+
+// Atalho útil para navegar direto para a linha do tempo da máquina (Melhoria #8 integrada)
+const verHistoricoSerie = (serie) => {
+  router.push(`/inicio/pos-venda/maquinas/historico?serie=${encodeURIComponent(serie)}`)
+}
+
+// Carrega os documentos cadastrados na coleção 'maquinas'
+const carregarMaquinas = async () => {
+  carregando.value = true
+  try {
+    const querySnapshot = await getDocs(collection(db, 'maquinas'))
+    const lista = []
+    querySnapshot.forEach((docSnap) => {
+      lista.push({ id: docSnap.id, ...docSnap.data() })
+    })
+    maquinas.value = lista
+  } catch (e) {
+    console.error('Erro ao carregar máquinas:', e)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar máquinas do Firebase.' })
+  } finally {
+    carregando.value = false
+  }
+}
+
+// Filtro Inteligente: Aplica restrição por filial (unidade) e aba ativa
+const maquinasFiltradas = computed(() => {
+  let lista = maquinas.value
+
+  // Aplica o filtro de unidade com foco na regra unificada de Filiais
+  if (unidadeUsuario.value && unidadeUsuario.value !== 'master') {
+    lista = lista.filter((m) => m.unidadeAtual === unidadeUsuario.value)
+  }
+
+  if (abaAtual.value === 'todos') return lista
+  return lista.filter((m) => m.status === abaAtual.value)
+})
+
+// Tradutor amigável das strings armazenadas no banco
+const formatarStatus = (status) =>
+  ({
+    em_estoque: 'Em Estoque',
+    em_transito: 'Em Trânsito',
+    aguardando_entrega_cliente: 'Link Emitido / Pendente', // Nova Label!
+    entregue: 'Entregue ao Cliente',
+  })[status] || status
+
+// Gerenciador de Paleta de Cores Quasar
+const corDoStatus = (status) =>
+  ({
+    em_estoque: 'positive',
+    em_transito: 'warning',
+    aguardando_entrega_cliente: 'orange-8', // Nova Cor chamativa para a logística!
+    entregue: 'green-10',
+  })[status] || 'grey'
+
+// Inicialização e Validação de Sessão Unificada
+onMounted(async () => {
+  const sessao = await localforage.getItem('user_session')
+  perfisUsuario.value = sessao?.perfis || []
+
+  if (perfisUsuario.value.includes('master') || perfisUsuario.value.includes('gerente_comercial')) {
+    unidadeUsuario.value = 'master'
+  } else if (sessao && sessao.unidade) {
+    // Alinhamento Passo 2: Ignora 'cidade' e foca 100% na propriedade 'unidade' definida no Painel
+    unidadeUsuario.value = sessao.unidade
+  } else {
+    const user = getAuth().currentUser
+    if (user) {
+      const docSnap = await getDoc(doc(db, 'usuarios', user.uid))
+      if (docSnap.exists()) {
+        unidadeUsuario.value = docSnap.data().unidade || ''
+      }
+    }
+  }
+
+  await carregarMaquinas()
+})
+</script>

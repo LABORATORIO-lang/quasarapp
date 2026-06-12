@@ -12,29 +12,29 @@
       </div>
     </div>
 
-    <div class="row q-col-gutter-lg">
+    <div class="row q-col-gutter-md">
       <div v-for="modelo in modelos" :key="modelo.id" class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col column justify-center">
-            <div class="text-h5 text-weight-bolder text-capitalize text-orange-8 q-mb-sm">
-              {{ modelo.nome }}
-            </div>
-            <div class="text-subtitle2 text-grey-5" style="line-height: 1.4">
-              {{ obterDescricao(modelo.id) }}
+        <q-card class="bg-grey-9 text-white custom-card" clickable @click="iniciarChecklist(modelo.id)">
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="assignment" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-capitalize text-orange-8">
+                  {{ modelo.nome }}
+                </div>
+                <div class="text-caption text-grey-5 card-description">
+                  {{ obterDescricao(modelo.id) }}
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="FAZER CHECKLIST"
-              icon-right="assignment"
-              @click="iniciarChecklist(modelo.id)"
-            />
-          </q-card-actions>
         </q-card>
       </div>
     </div>
@@ -100,16 +100,22 @@ onMounted(carregarModelos)
 
 <style scoped>
 .custom-card {
-  border: 1px solid #424242;
-  border-radius: 12px;
-  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 8px;
   transition:
     transform 0.2s,
     border-color 0.2s;
-  height: 185px !important;
+  cursor: pointer;
 }
 .custom-card:hover {
-  transform: translateY(-4px);
   border-color: #ff9800;
+}
+
+.icon-box {
+  border: 1px solid #ff9800;
+}
+
+.card-description {
+  line-height: 1.35;
 }
 </style>

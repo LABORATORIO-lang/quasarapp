@@ -15,79 +15,72 @@
       <span>Módulos de Checklists</span>
     </div>
 
-    <div class="row q-col-gutter-lg q-mb-xl">
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col">
-            <div class="row justify-between items-center q-mb-md">
-              <q-avatar size="48px" color="grey-10" text-color="orange-8" class="icon-box">
-                <q-icon name="storefront" />
-              </q-avatar>
+    <div class="row q-col-gutter-md q-mb-xl">
+      <!-- Setor Comercial - só gerente_comercial e master -->
+      <div v-if="temAcesso('admin_comercial')" class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card" clickable @click="irPara('comercial')">
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="storefront" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold">Setor Comercial</div>
+                <div class="text-caption text-grey-5 card-description">Checklist Comercial.</div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
-            <div class="text-h6 text-weight-bold">Setor Comercial</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Ckecklist Comercial.</div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="CONFIGURAR"
-              icon-right="arrow_forward"
-              @click="irPara('comercial')"
-            />
-          </q-card-actions>
         </q-card>
       </div>
 
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col">
-            <div class="row justify-between items-center q-mb-md">
-              <q-avatar size="48px" color="grey-10" text-color="blue-5" class="icon-box-blue">
-                <q-icon name="build" />
-              </q-avatar>
+      <!-- Pós-Venda - só gerente_pos_venda e master -->
+      <div v-if="temAcesso('admin_pos_venda')" class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card" clickable @click="irPara('pos_venda')">
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="blue-5" class="icon-box-blue">
+                  <q-icon name="build" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold">Pós-Venda</div>
+                <div class="text-caption text-grey-5 card-description">Checklist Pós-Venda.</div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
-            <div class="text-h6 text-weight-bold">Pós-Venda</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Checklist Pós-Venda.</div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="CONFIGURAR"
-              icon-right="arrow_forward"
-              @click="irPara('pos_venda')"
-            />
-          </q-card-actions>
         </q-card>
       </div>
 
-      <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col">
-            <div class="row justify-between items-center q-mb-md">
-              <q-avatar size="48px" color="grey-10" text-color="green-5" class="icon-box-green">
-                <q-icon name="local_shipping" />
-              </q-avatar>
+      <!-- Starpes - só gerente_pos_venda e master -->
+      <div v-if="temAcesso('admin_starpes')" class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card" clickable @click="irPara('starpes')">
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="green-5" class="icon-box-green">
+                  <q-icon name="assignment_turned_in" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold">Starpes</div>
+                <div class="text-caption text-grey-5 card-description">
+                  Checklist Starpes - Inspeções de máquinas.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
             </div>
-            <div class="text-h6 text-weight-bold">Logística de Transporte</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Checklist Transporte.</div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="orange-8"
-              label="CONFIGURAR"
-              icon-right="arrow_forward"
-              @click="irPara('logistica')"
-            />
-          </q-card-actions>
         </q-card>
       </div>
     </div>
@@ -97,30 +90,30 @@
       <span>Segurança e Sistema</span>
     </div>
 
-    <div class="row q-col-gutter-lg">
+    <div class="row q-col-gutter-md">
       <div class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card column justify-between">
-          <q-card-section class="q-pa-lg col">
-            <div class="row justify-between items-center q-mb-md">
-              <q-avatar size="48px" color="grey-10" text-color="red-5" class="icon-box-red">
-                <q-icon name="people" />
-              </q-avatar>
-              <q-badge color="red-5" label="Restrito" />
+        <q-card class="bg-grey-9 text-white custom-card" clickable @click="irParaAcessos">
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="red-5" class="icon-box-red">
+                  <q-icon name="people" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="row items-center q-gutter-sm">
+                  <div class="text-subtitle1 text-weight-bold">Painel de Acesso</div>
+                  <q-badge color="red-5" label="Restrito" />
+                </div>
+                <div class="text-caption text-grey-5 card-description">
+                  Controle de permissões e acessos.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="lock_open" color="red-5" size="20px" />
+              </div>
             </div>
-            <div class="text-h6 text-weight-bold">Painel de Acesso</div>
-            <div class="text-caption text-grey-5 q-mt-xs"></div>
           </q-card-section>
-
-          <q-separator color="grey-8" />
-          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-            <q-btn
-              flat
-              color="red-5"
-              label="CONFIGURAR"
-              icon-right="lock_open"
-              @click="irParaAcessos"
-            />
-          </q-card-actions>
         </q-card>
       </div>
     </div>
@@ -128,31 +121,68 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import localforage from 'localforage'
 
 const router = useRouter()
+const perfisUsuario = ref([])
+
+const permissoes = {
+  gerente_comercial: ['admin_comercial'],
+  gerente_pos_venda: ['admin_pos_venda', 'admin_starpes'],
+}
+
+const temAcesso = (modulo) => {
+  if (perfisUsuario.value.includes('master')) return true
+  const todosAcessos = perfisUsuario.value.flatMap((p) => permissoes[p] || [])
+  return todosAcessos.includes(modulo)
+}
+
+const irParaAcessos = () => {
+  router.push('/admin/acessos')
+}
 
 function irPara(setor) {
-  // Isso vai montar a URL: /admin/pos_venda
   router.push(`/admin/${setor}`)
 }
+
+onMounted(async () => {
+  const sessao = await localforage.getItem('user_session')
+  if (sessao && sessao.perfis && sessao.perfis.length > 0) {
+    perfisUsuario.value = sessao.perfis
+  } else {
+    // Fallback: busca do Firebase
+    const { getAuth } = await import('firebase/auth')
+    const { doc, getDoc } = await import('firebase/firestore')
+    const { db } = await import('src/boot/firebase')
+    const user = getAuth().currentUser
+    if (user) {
+      if (user.uid === '6qiehRW7f0YfA2kZAWcpXR3NFWc2') {
+        perfisUsuario.value = ['master']
+      } else {
+        const docSnap = await getDoc(doc(db, 'usuarios', user.uid))
+        if (docSnap.exists()) {
+          perfisUsuario.value = docSnap.data().perfis || []
+        }
+      }
+    }
+  }
+})
 </script>
 
 <style scoped>
 .custom-card {
-  border: 1px solid #424242;
-  border-radius: 12px;
-  overflow: hidden;
+  border: 1px solid #333;
+  border-radius: 8px;
   transition:
     transform 0.2s,
     border-color 0.2s;
-
-  /* Trava o tamanho idêntico e força o rodapé a ficar embaixo */
-  height: 250px !important;
+  cursor: pointer;
 }
 
 .custom-card:hover {
-  transform: translateY(-4px);
+  border-color: #ff9800;
 }
 
 .icon-box {
@@ -166,5 +196,9 @@ function irPara(setor) {
 }
 .icon-box-red {
   border: 1px solid #f44336;
+}
+
+.card-description {
+  line-height: 1.35;
 }
 </style>

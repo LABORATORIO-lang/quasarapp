@@ -261,6 +261,9 @@ const handleRegister = async () => {
       email: fullEmail,
       cidade: selectedCity.value,
       dataCriacao: new Date().toISOString(),
+      perfil: null,
+      acessoAprovado: false,
+      unidade: null,
     })
 
     $q.loading.hide()

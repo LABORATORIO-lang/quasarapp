@@ -1,6 +1,11 @@
 {
   "appId": "com.dinamica.checklist",
-  "appName": "Dinâmica Checklist",
+  "appName": "DinamicaApp",
   "webDir": "../dist/spa",
-  "bundledWebRuntime": false
+  "bundledWebRuntime": false,
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }

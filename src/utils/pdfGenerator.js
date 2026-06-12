@@ -1,7 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake'
 import pdfFonts from 'pdfmake/build/vfs_fonts'
 import logoTimbrado from 'src/assets/logo-timbrado.png'
-
+import localforage from 'localforage'
 pdfMake.vfs = pdfFonts.pdfMake?.vfs || pdfFonts.default?.pdfMake?.vfs || pdfFonts.vfs
 
 const imagemParaBase64 = async (url) => {
@@ -21,20 +21,9 @@ const imagemParaBase64 = async (url) => {
   })
 }
 
-// ==========================================
-// MÁQUINA DE LIMPEZA DE IMAGENS (BLINDAGEM)
-// ==========================================
-// ==========================================
-// MÁQUINA DE LIMPEZA DE IMAGENS (BLINDAGEM ESTILIZADA)
-// ==========================================
 const formatarImagem = (img) => {
   if (!img || typeof img !== 'string') return null
-
-  // Limpa espaços invisíveis ou quebras de linha que corrompem o base64
   const limpa = img.replace(/\s+/g, '')
-
-  // O pdfMake SÓ suporta PNG, JPG e JPEG.
-  // Bloqueamos WebP, SVG, GIF, etc., que causam o erro "Unknown image format"
   if (
     limpa.startsWith('data:image/png') ||
     limpa.startsWith('data:image/jpeg') ||
@@ -42,153 +31,250 @@ const formatarImagem = (img) => {
   ) {
     return limpa
   }
-
-  // Se chegar aqui, é porque a imagem está num formato não suportado (ex: WebP)
-  console.warn('⚠️ IMAGEM BLOQUEADA: Formato não suportado pelo PDF ->', limpa.substring(0, 30))
   return null
 }
 
-export const gerarChecklistPdf = async (dadosDaTela) => {
+const limparTexto = (texto = '', manterQuebra = false) => {
+  const base = String(texto).replace(/\\ZX/g, ' ')
+  if (manterQuebra) return base.replace(/[^\S\r\n]+/g, ' ').trim()
+  return base.replace(/\s+/g, ' ').trim()
+}
+
+const processarLinhasObservacao = (texto, incluirMargem = false) => {
+  return limparTexto(texto, true)
+    .split('\n')
+    .map((linha) => {
+      const sepIndex = linha.indexOf(':')
+      const base = incluirMargem ? { margin: [0, 2, 0, 2] } : {}
+      if (sepIndex > 0 && sepIndex < 40) {
+        return {
+          ...base,
+          text: [
+            {
+              text: linha.substring(0, sepIndex + 1),
+              bold: true,
+              color: '#F3772C',
+            },
+            { text: linha.substring(sepIndex + 1) },
+          ],
+        }
+      }
+      return { ...base, text: linha }
+    })
+}
+
+export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => {
   console.log('DADOS RECEBIDOS NO GERADOR DE PDF:', dadosDaTela)
 
-  const { nomeMaquina, formulario, itens, assinaturas, fotosGerais } = dadosDaTela
+  let nomeUsuario = dadosDaTela.userName || 'Usuário'
+  if (nomeUsuario === 'Usuário') {
+    try {
+      const sessao = await localforage.getItem('user_session')
+      if (sessao?.nome) nomeUsuario = sessao.nome
+    } catch {
+      // segue com 'Usuário'
+    }
+  }
 
-  // 1. Limpar e validar as assinaturas com segurança logo de início
-  const imgVend = formatarImagem(assinaturas?.vendedorImagem)
-  const imgCli = formatarImagem(assinaturas?.clienteImagem)
-  const imgTec = formatarImagem(assinaturas?.tecnicoImagem)
+  const dataHoraPdf = dadosDaTela.dataHoraFormatada || new Date().toLocaleString('pt-BR')
+  const {
+    nomeMaquina,
+    formulario: formularioNovo,
+    dadosFormulario,
+    itens: itensNovos,
+    respostasChecklist,
+    assinaturas,
+    fotosGerais,
+  } = dadosDaTela
+
+  const formulario = formularioNovo || dadosFormulario || {}
+  const itens = itensNovos || respostasChecklist || []
+
+  // Coleta as observações gerais unificadas de fábrica ou transferência
+  const obsGeralTexto =
+    dadosDaTela.observacaoGeral || formulario.observacaoGeral || dadosDaTela.descricao || ''
+
+  const modoPosVenda = !!(assinaturas?.responsavelNome || assinaturas?.motoristaNome)
+  const tipoPdf = dadosDaTela.tipoPdf || dadosDaTela.tipo || ''
+
+  let tituloPdf = 'RELATÓRIO DE AVALIAÇÃO'
+  if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
+    tituloPdf = 'RECEBIMENTO DE FÁBRICA'
+  } else if (tipoPdf === 'transferencia_saida' || tipoPdf === 'transferencia') {
+    tituloPdf = `TRANSFERÊNCIA: ${(formulario?.unidadeAtual || '').toUpperCase()} → ${(formulario?.unidadeDestino || formulario?.destino || '').toUpperCase()}`
+  } else if (tipoPdf === 'recebimento_transferencia') {
+    tituloPdf = `RECEBIMENTO DE TRANSFERÊNCIA (DE ${(formulario?.unidadeOrigem || '').toUpperCase()})`
+  } else if (tipoPdf === 'venda') {
+    tituloPdf = 'VENDA AO CLIENTE'
+  } else if (tipoPdf === 'entrega_cliente') {
+    tituloPdf = 'TERMO DE ENTREGA TÉCNICA AO CLIENTE'
+  }
+
+  const assinaVend = modoPosVenda ? assinaturas?.responsavelNome : assinaturas?.vendedorNome
+  const assinaCli = modoPosVenda ? assinaturas?.motoristaNome : assinaturas?.clienteNome
+
+  const labelBlocoA = modoPosVenda ? 'Responsável Técnico' : 'Vendedor(a)'
+  const labelBlocoB =
+    tipoPdf === 'entrega_cliente' ? 'Cliente' : modoPosVenda ? 'Motorista' : 'Cliente'
+
+  const imgPrim = formatarImagem(
+    modoPosVenda ? assinaturas?.responsavelImagem : assinaturas?.vendedorImagem,
+  )
+  const imgSeg = formatarImagem(
+    modoPosVenda ? assinaturas?.motoristaImagem : assinaturas?.clienteImagem,
+  )
 
   let logoBase64 = null
   try {
     logoBase64 = formatarImagem(await imagemParaBase64(logoTimbrado))
   } catch (e) {
-    console.error('Erro ao carregar a logo', e)
+    console.error(e)
   }
 
-  // --- MONTANDO LISTA ÚNICA DE FOTOS ---
   const todasAsFotos = []
-
-  // 2. Fotos Gerais com BLINDAGEM MÁXIMA
   if (fotosGerais) {
     ;['Frente', 'Direita', 'Traseira', 'Esquerda'].forEach((pos) => {
       const fotoLimpa = formatarImagem(fotosGerais[pos])
-      if (fotoLimpa) {
-        todasAsFotos.push({ titulo: `Foto Geral - ${pos}`, base64: fotoLimpa })
-      }
+      if (fotoLimpa) todasAsFotos.push({ titulo: `Foto Geral - ${pos}`, base64: fotoLimpa })
     })
   }
 
-  // 3. Fotos dos Itens com BLINDAGEM MÁXIMA
   if (itens && itens.length > 0) {
     itens.forEach((item, index) => {
       if (item.fotos?.length > 0) {
         item.fotos.forEach((foto) => {
           const fotoLimpa = formatarImagem(foto)
-          if (fotoLimpa) {
+          if (fotoLimpa)
             todasAsFotos.push({ titulo: `Item ${index + 1}: ${item.texto}`, base64: fotoLimpa })
-          }
         })
       }
     })
   }
 
-  // --- CRIANDO PÁGINAS DE FOTOS ---
   const anexosContent = []
-  for (let i = 0; i < todasAsFotos.length; i += 2) {
-    const par = todasAsFotos.slice(i, i + 2)
-
-    const pagina = {
-      stack: [],
-      pageBreak: 'before',
-      margin: [0, 0],
-    }
-
-    par.forEach((foto, index) => {
-      pagina.stack.push({
-        text: foto.titulo,
-        style: 'sectionTitulo',
-        fontSize: 12,
-        alignment: 'center',
-        margin: [0, index === 0 ? 0 : 10, 0, 5],
-      })
-      pagina.stack.push({
-        image: foto.base64,
-        width: 400,
-        height: 300,
-        fit: [400, 300],
-        alignment: 'center',
-        margin: [0, 0, 0, 5],
-      })
-    })
-    anexosContent.push(pagina)
-  }
-
-  // --- DEFINIÇÃO DO DOCUMENTO ---
-  const docDefinition = {
-    pageSize: 'A4',
-    pageMargins: [40, 70, 40, 70],
-
-    header: () =>
-      logoBase64
-        ? { image: logoBase64, width: 515, alignment: 'center', margin: [0, 20, 0, 10] }
-        : null,
-
-    footer: (currentPage, pageCount) => {
-      return {
+  if (todasAsFotos.length > 0) {
+    todasAsFotos.forEach((foto) => {
+      anexosContent.push({
+        unbreakable: true,
         stack: [
           {
-            canvas: [
-              { type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: '#F3772C' },
-            ],
-            margin: [40, 0, 40, 5],
+            text: foto.titulo,
+            style: 'sectionTitulo',
+            fontSize: 12,
+            alignment: 'center',
+            margin: [0, 10, 0, 8],
           },
           {
-            text: `Dinâmica Máquinas Agrícolas LTDA, Fone: (65) 3382-4743\nEndereço: Av. Olacyr Francisco de Moraes, nº 3005 - Bairro Area Urbana II, CEP 78.360-000 - Campo Novo do Parecis/MT\nPágina ${currentPage} de ${pageCount}`,
-            fontSize: 8,
-            color: '#555',
+            image: foto.base64,
+            fit: [500, 280], // Altura ajustada para garantir que 2 fotos caibam por página sem sobrar folha em branco
             alignment: 'center',
-            margin: [40, 0, 40, 0],
+            margin: [0, 0, 0, 15],
           },
         ],
-      }
-    },
+      })
+    })
+  }
 
+  // ==========================================
+  // BLOCOS DE ASSINATURA CORRIGIDOS E ATIVOS
+  // ==========================================
+  const blocoAssinatura = (img, nome, label, documento = null) => ({
+    stack: [
+      img
+        ? { image: img, width: 150, alignment: 'center' }
+        : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
+      { text: '____________________________________', alignment: 'center', margin: [0, 5, 0, 0] },
+      { text: `${label}: ${nome || ''}`, alignment: 'center' },
+      documento
+        ? {
+            text: `CPF: ${String(documento)
+              .replace(/\D/g, '')
+              .replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}`,
+            alignment: 'center',
+            fontSize: 9,
+            color: '#333',
+          }
+        : {},
+    ],
+  })
+
+  const colunasAssinaturas = [
+    blocoAssinatura(imgPrim, assinaVend, labelBlocoA, assinaturas?.responsavelCpf),
+    blocoAssinatura(
+      imgSeg,
+      assinaCli,
+      labelBlocoB,
+      assinaturas?.motoristaCpf || assinaturas?.clienteCpf,
+    ),
+  ]
+
+  const docDefinition = {
+    pageSize: 'A4',
+    pageMargins: [30, 100, 30, 60],
+    header: () =>
+      logoBase64
+        ? { image: logoBase64, fit: [535, 70], alignment: 'center', margin: [0, 8, 0, 0] }
+        : null,
+    footer: (currentPage, pageCount) => ({
+      stack: [
+        {
+          text: `Checklist realizado por: ${nomeUsuario} em ${dataHoraPdf}`,
+          fontSize: 8,
+          color: '#F3772C',
+          alignment: 'center',
+          margin: [40, 0, 40, 3],
+          bold: true,
+        },
+        {
+          canvas: [
+            { type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1, lineColor: '#F3772C' },
+          ],
+          margin: [40, 0, 40, 5],
+        },
+        {
+          text: `Dinâmica Máquinas Agrícolas LTDA — Página ${currentPage} de ${pageCount}`,
+          fontSize: 7,
+          color: '#555',
+          alignment: 'center',
+          margin: [40, 0, 40, 0],
+        },
+      ],
+    }),
     content: [
-      { text: '\nRELATÓRIO DE AVALIAÇÃO', style: 'header', alignment: 'center' },
+      { text: tituloPdf, style: 'header', alignment: 'center' },
       {
         text: `\n${nomeMaquina ? nomeMaquina.toUpperCase() : 'EQUIPAMENTO'}`,
         style: 'subheader',
         alignment: 'center',
       },
-
       { text: 'DADOS DO EQUIPAMENTO', style: 'sectionTitulo' },
       { text: '\n' },
       {
         margin: [0, 0, 0, 20],
         columns: [
-          // ==========================================
-          // COLUNA DA ESQUERDA (4 Campos)
-          // ==========================================
           {
             width: '45%',
             stack: [
-              { text: 'CLIENTE', style: 'label' },
-              { text: formulario?.cliente || '-', style: 'value', alignment: 'left' },
-              {
-                canvas: [
-                  {
-                    type: 'line',
-                    x1: 0,
-                    y1: 5,
-                    x2: 230,
-                    y2: 5,
-                    lineWidth: 0.5,
-                    lineColor: '#F3772C',
-                  },
-                ],
-                margin: [0, 0, 0, 10],
-              },
-
+              ...(!modoPosVenda || tipoPdf === 'venda' || tipoPdf === 'entrega_cliente'
+                ? [
+                    { text: 'CLIENTE', style: 'label' },
+                    { text: formulario?.cliente || '-', style: 'value', alignment: 'left' },
+                    {
+                      canvas: [
+                        {
+                          type: 'line',
+                          x1: 0,
+                          y1: 5,
+                          x2: 230,
+                          y2: 5,
+                          lineWidth: 0.5,
+                          lineColor: '#F3772C',
+                        },
+                      ],
+                      margin: [0, 0, 0, 10],
+                    },
+                  ]
+                : []),
               { text: 'MARCA', style: 'label' },
               { text: formulario?.marca || '-', style: 'value', alignment: 'left' },
               {
@@ -205,7 +291,6 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
-
               { text: 'SÉRIE', style: 'label' },
               { text: formulario?.serie || '-', style: 'value', alignment: 'left' },
               {
@@ -222,8 +307,6 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
-
-              // ---> HORÍMETRO NA ESQUERDA <---
               { text: 'HORÍMETRO', style: 'label' },
               { text: formulario?.horimetro || '-', style: 'value', alignment: 'left' },
               {
@@ -242,20 +325,16 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
               },
             ],
           },
-
-          // ==========================================
-          // ESPAÇO VAZIO NO MEIO
-          // ==========================================
           { text: '', width: '10%' },
-
-          // ==========================================
-          // COLUNA DA DIREITA (3 Campos)
-          // ==========================================
           {
             width: '45%',
             stack: [
-              { text: 'CIDADE', style: 'label' },
-              { text: formulario?.cidade || '-', style: 'value', alignment: 'left' },
+              { text: 'UNIDADE EMISSORA / CIDADE', style: 'label' },
+              {
+                text: formulario?.unidadeAtual || formulario?.cidade || '-',
+                style: 'value',
+                alignment: 'left',
+              },
               {
                 canvas: [
                   {
@@ -270,7 +349,6 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
-
               { text: 'MODELO', style: 'label' },
               { text: formulario?.modelo || '-', style: 'value', alignment: 'left' },
               {
@@ -287,7 +365,6 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
                 ],
                 margin: [0, 0, 0, 10],
               },
-
               { text: 'ANO', style: 'label' },
               { text: formulario?.ano || '-', style: 'value', alignment: 'left' },
               {
@@ -308,104 +385,122 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
           },
         ],
       },
-
       { text: 'ITENS VERIFICADOS', style: 'sectionTitulo' },
       {
         table: {
-          widths: ['*', 70, '*'],
+          widths: ['40%', '15%', '45%'],
           headerRows: 1,
           dontBreakRows: true,
           body: [
             [
-              { text: 'ITEM', style: 'itemHeader' },
-              { text: 'STATUS', style: 'itemHeader', alignment: 'center' },
-              { text: 'OBSERVAÇÕES', style: 'itemHeader' },
+              { text: 'ITEM', style: 'itemHeader', fillColor: '#F3772C', color: 'white' },
+              {
+                text: 'STATUS',
+                style: 'itemHeader',
+                alignment: 'center',
+                fillColor: '#F3772C',
+                color: 'white',
+              },
+              { text: 'OBSERVAÇÕES', style: 'itemHeader', fillColor: '#F3772C', color: 'white' },
             ],
-            ...(itens || []).map((i) => {
+            ...(itens || []).map((i, index) => {
               let corStatus = '#666'
               let textoStatus = i.resposta || 'N/A'
               if (['SIM', 'BOM', 'OK'].includes(textoStatus)) corStatus = '#2e7d32'
               else if (textoStatus === 'ATENCAO') corStatus = '#ef6c00'
               else if (['RUIM', 'NAO'].includes(textoStatus)) corStatus = '#c62828'
+
+              const rowColor = index % 2 === 0 ? '#FFFFFF' : '#FDF2F0' // Efeito Zebra Premium
+
               return [
-                { text: i.texto, style: 'itemText' },
-                { text: textoStatus, style: 'statusBadge', color: corStatus, bold: true },
-                { text: i.observacao || '-', style: 'itemText' },
+                {
+                  text: limparTexto(i.texto),
+                  style: 'itemText',
+                  noWrap: false,
+                  fillColor: rowColor,
+                },
+                {
+                  text: textoStatus,
+                  style: 'statusBadge',
+                  color: corStatus,
+                  bold: true,
+                  fillColor: rowColor,
+                },
+                {
+                  stack: processarLinhasObservacao(i.observacao || '-'),
+                  style: 'itemText',
+                  noWrap: false,
+                  fillColor: rowColor,
+                },
               ]
             }),
           ],
         },
-        layout: { hLineWidth: () => 0.5, vLineWidth: () => 0, hLineColor: () => '#ddd' },
+        layout: {
+          hLineWidth: (i, node) => (i === 0 || i === node.table.body.length ? 0 : 0.5),
+          vLineWidth: () => 0, // Remove linhas verticais para visual moderno
+          hLineColor: () => '#E0E0E0',
+          paddingLeft: () => 10,
+          paddingRight: () => 10,
+          paddingTop: () => 8,
+          paddingBottom: () => 8,
+        },
         margin: [0, 0, 0, 20],
       },
-
-      // --- 1º ANEXOS (Fotos aparecem antes das assinaturas) ---
+      ...(obsGeralTexto && obsGeralTexto.trim() !== ''
+        ? [
+            {
+              unbreakable: true,
+              stack: [
+                {
+                  text: 'OBSERVAÇÕES GERAIS DO PROCESSO',
+                  style: 'sectionTitulo',
+                  margin: [0, 15, 0, 5],
+                },
+                {
+                  table: {
+                    widths: ['*'],
+                    body: [
+                      [
+                        {
+                          stack: processarLinhasObservacao(obsGeralTexto, true),
+                          fontSize: 10,
+                          color: '#222',
+                          margin: [8, 8, 8, 8],
+                        },
+                      ],
+                    ],
+                  },
+                  layout: {
+                    hLineWidth: () => 0.5,
+                    vLineWidth: () => 0.5,
+                    hLineColor: () => '#F3772C',
+                    vLineColor: () => '#F3772C',
+                  },
+                  margin: [0, 0, 0, 20],
+                },
+              ],
+            },
+          ]
+        : []),
       ...(anexosContent || []),
-
-      // --- 2º ASSINATURAS ---
       {
-        text: 'ASSINATURAS',
-        style: 'sectionTitulo',
-        margin: [0, 30, 0, 10],
-        // A MÁGICA DA QUEBRA DE PÁGINA DEPENDENDO DO NÚMERO DE FOTOS
-        ...(todasAsFotos.length > 0 && todasAsFotos.length % 2 === 0
-          ? { pageBreak: 'before' }
-          : {}),
-      },
-
-      {
-        columns: [
-          // Vendedor
+        unbreakable: true,
+        stack: [
           {
-            stack: [
-              imgVend
-                ? { image: imgVend, width: 150, alignment: 'center' }
-                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
-              {
-                text: '____________________________________',
-                alignment: 'center',
-                margin: [0, 5, 0, 0],
-              },
-              { text: 'Vendedor(a): ' + (assinaturas?.vendedorNome || ''), alignment: 'center' },
-            ],
+            text: 'ASSINATURAS',
+            style: 'sectionTitulo',
+            margin: [0, 20, 0, 10],
           },
-          // Cliente
           {
-            stack: [
-              imgCli
-                ? { image: imgCli, width: 150, alignment: 'center' }
-                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
-              {
-                text: '____________________________________',
-                alignment: 'center',
-                margin: [0, 5, 0, 0],
-              },
-              { text: 'Cliente: ' + (assinaturas?.clienteNome || ''), alignment: 'center' },
-            ],
+            columns: colunasAssinaturas,
+            columnGap: 40,
           },
         ],
       },
-      // Técnico
-      imgTec || assinaturas?.tecnicoNome
-        ? {
-            stack: [
-              imgTec
-                ? { image: imgTec, width: 150, alignment: 'center' }
-                : { text: '\n(Sem assinatura)\n', alignment: 'center', color: '#ccc' },
-              {
-                text: '____________________________________',
-                alignment: 'center',
-                margin: [0, 5, 0, 0],
-              },
-              { text: 'Técnico: ' + (assinaturas?.tecnicoNome || ''), alignment: 'center' },
-            ],
-            margin: [0, 40, 0, 0],
-          }
-        : null,
     ],
-
     styles: {
-      header: { fontSize: 18, bold: true, color: '#F3772C', alignment: 'center' },
+      header: { fontSize: 20, bold: true, color: '#F3772C', alignment: 'center' },
       subheader: { fontSize: 12, color: '#555', alignment: 'center', margin: [0, 0, 0, 20] },
       sectionTitulo: {
         fontSize: 14,
@@ -417,11 +512,24 @@ export const gerarChecklistPdf = async (dadosDaTela) => {
       },
       label: { fontSize: 8, bold: true, color: '#F3772C', letterSpacing: 1 },
       value: { fontSize: 11, color: '#000', margin: [0, 2, 0, 0] },
-      itemHeader: { fontSize: 9, bold: true, color: '#666', margin: [0, 5, 0, 5] },
-      itemText: { fontSize: 10, color: '#333', margin: [0, 5, 0, 5] },
-      statusBadge: { fontSize: 9, bold: true, alignment: 'center', margin: [5, 2, 5, 2] },
+      itemHeader: {
+        fontSize: 8,
+        bold: true,
+        letterSpacing: 1,
+        margin: [0, 2, 0, 2],
+      },
+      itemText: {
+        fontSize: 10,
+        color: '#000',
+        lineHeight: 1.2,
+        margin: [0, 4, 0, 4],
+      },
+      statusBadge: { fontSize: 8, bold: true, alignment: 'center', margin: [5, 2, 5, 2] },
     },
   }
 
-  pdfMake.createPdf(docDefinition).download(`Checklist_${formulario?.cliente || 'Equipamento'}.pdf`)
+  const pdfDoc = pdfMake.createPdf(docDefinition)
+  if (retornarBase64) return await pdfDoc.getDataUrl()
+  const nomeArquivo = formulario?.serie || 'Equipamento'
+  await pdfDoc.download(`Checklist_${nomeArquivo}.pdf`)
 }

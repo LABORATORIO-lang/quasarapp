@@ -57,12 +57,20 @@
             rounded
           />
 
-          <div class="row justify-center q-mt-md">
+          <div class="row justify-between q-mt-md">
             <q-btn
               flat
               color="grey-5"
               label="Esqueceu a senha?"
               @click="router.push('/forgot-password')"
+              no-caps
+            />
+
+            <q-btn
+              flat
+              color="orange-8"
+              label="Criar conta"
+              @click="router.push('/register')"
               no-caps
             />
           </div>
@@ -87,35 +95,25 @@ const email = ref('')
 const password = ref('')
 const isPasswordHidden = ref(true)
 
-// Ao carregar a tela de login, verifica se já existe uma sessão salva
 onMounted(async () => {
   const sessao = await localforage.getItem('user_session')
-
   if (sessao) {
-    // Se achou a sessão, faz o login automático (funciona offline e online)
     router.push('/inicio')
   }
 })
 
 const handleLogin = async () => {
   if (!email.value || !password.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Preencha todos os campos.',
-    })
+    $q.notify({ type: 'warning', message: 'Preencha todos os campos.' })
     return
   }
 
   const emailFormatado = `${email.value.trim()}@dinamicamaquinas.com`
 
-  // 1. Lógica para quando tenta logar sem internet e por algum motivo não logou automático
   if (!navigator.onLine) {
     const sessaoSalva = await localforage.getItem('user_session')
     if (sessaoSalva && sessaoSalva.email === emailFormatado) {
-      $q.notify({
-        type: 'positive',
-        message: 'Modo Offline: Acesso permitido.',
-      })
+      $q.notify({ type: 'positive', message: 'Modo Offline: Acesso permitido.' })
       router.push('/inicio')
       return
     } else {
@@ -127,36 +125,26 @@ const handleLogin = async () => {
     }
   }
 
-  // 2. Lógica normal (Online via Firebase)
-  $q.loading.show({
-    message: 'Autenticando...',
-  })
+  $q.loading.show({ message: 'Autenticando...' })
 
   try {
     const userCredential = await signInWithEmailAndPassword(auth, emailFormatado, password.value)
 
-    if (userCredential.user.emailVerified) {
-      // Salva a sessão para garantir o login automático na próxima vez (offline ou online)
-      await localforage.setItem('user_session', {
-        email: userCredential.user.email,
-      })
-
+    //if (userCredential.user.emailVerified)
+    {
+      await localforage.setItem('user_session', { email: userCredential.user.email })
       $q.loading.hide()
       router.push('/inicio')
-    } else {
+    }
+    //else
+    {
       $q.loading.hide()
-      $q.notify({
-        type: 'warning',
-        message: 'Confirme seu e-mail antes de acessar.',
-      })
+      $q.notify({ type: 'warning', message: 'Confirme seu e-mail antes de acessar.' })
     }
   } catch (error) {
     console.error(error)
     $q.loading.hide()
-    $q.notify({
-      type: 'negative',
-      message: 'Usuário ou senha inválidos.',
-    })
+    $q.notify({ type: 'negative', message: 'Usuário ou senha inválidos.' })
   }
 }
 </script>

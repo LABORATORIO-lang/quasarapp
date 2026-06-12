@@ -77,6 +77,18 @@ export default defineConfig((/* ctx */) => {
     devServer: {
       // https: true,
       open: true, // opens browser window automatically
+      proxy: {
+        '/imea-api': {
+          target: 'https://api1.imea.com.br/api',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/imea-api/, ''),
+        },
+        '/bcb-api': {
+          target: 'https://olinda.bcb.gov.br',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/bcb-api/, ''),
+        },
+      },
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
