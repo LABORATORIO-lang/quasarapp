@@ -317,7 +317,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc, updateDoc, Timestamp, arrayUnion, setDoc } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
-import { getAuth } from 'firebase/auth'
 
 const $q = useQuasar()
 const route = useRoute()
