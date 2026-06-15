@@ -12,7 +12,7 @@
 
     <div class="row q-col-gutter-md">
       <!-- Nova da Fábrica -->
-      <div class="col-12 col-sm-6">
+      <div class="col-12 col-sm-6 col-md-4">
         <q-card
           clickable
           class="compact-card bg-grey-9 text-white"
@@ -27,7 +27,7 @@
       </div>
 
       <!-- Transferência Outra Unidade -->
-      <div class="col-12 col-sm-6">
+      <div class="col-12 col-sm-6 col-md-4">
         <q-card
           clickable
           class="compact-card bg-grey-9 text-white"
@@ -37,6 +37,22 @@
             <q-icon name="local_shipping" size="48px" color="orange-8" class="q-mb-sm" />
             <div class="text-h6 text-weight-bold text-orange-8">Transferência</div>
             <div class="text-caption text-grey-5">Máquina vindo de outra unidade</div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- 🆕 Usada / Negociação -->
+      <div class="col-12 col-sm-6 col-md-4">
+        <q-card
+          clickable
+          class="compact-card bg-grey-9 text-white"
+          style="border-color: #ff9800"
+          @click="router.push('/inicio/pos-venda/maquinas/receber-usada')"
+        >
+          <q-card-section class="q-pa-md text-center">
+            <q-icon name="swap_horiz" size="48px" color="orange-8" class="q-mb-sm" />
+            <div class="text-h6 text-weight-bold text-orange-8">Usada / Negociação</div>
+            <div class="text-caption text-grey-5">Máquina usada</div>
           </q-card-section>
         </q-card>
       </div>

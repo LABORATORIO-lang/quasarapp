@@ -105,6 +105,11 @@ const routes = [
           import('pages/telas/pos_venda/calculadoraplantio/CalibrarEmendaPlantio.vue'),
       },
       {
+        path: 'pos-venda/maquinas/receber-usada',
+        component: () => import('pages/telas/pos_venda/checklistnovas/ReceberUsada.vue'),
+      },
+
+      {
         path: 'pos-venda/calculo-plantio/desligamento',
         component: () =>
           import('pages/telas/pos_venda/calculadoraplantio/DesligamentoLinhaALinha.vue'),
@@ -114,6 +119,14 @@ const routes = [
       { path: 'historico/:setor', component: () => import('pages/HistoricoRegistros.vue') },
 
       // --- Rotas do Checklist (Setor Comercial) ---
+      {
+        path: 'comercial/despacho-usadas',
+        component: () => import('pages/telas/comercial/checklist/DespachoGerente.vue'),
+      },
+      {
+        path: 'logistica/carregar-usada',
+        component: () => import('pages/telas/logistica/CarregarUsada.vue'),
+      },
       {
         path: 'comercial/checklist/selecionar',
         component: () => import('pages/telas/comercial/checklist/ChecklistSelecao.vue'),

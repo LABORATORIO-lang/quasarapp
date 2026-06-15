@@ -969,6 +969,35 @@ const salvarChecklistNoTelemovel = async () => {
       console.warn('⚠️ Não sincronizou com servidor:', servidorError.message)
     }
 
+    // --- NOVO: Salva avaliação da usada no Firestore para o Gerente ver ---
+    try {
+      const { setDoc, doc } = await import('firebase/firestore')
+      const { db } = await import('src/boot/firebase')
+
+      const serieTrim = (formulario.value.serie || '').trim().toUpperCase()
+      if (serieTrim) {
+        await setDoc(doc(db, 'avaliacoes_usadas', serieTrim), {
+          serie: serieTrim,
+          modelo: formulario.value.modelo || '',
+          marca: formulario.value.marca || '',
+          ano: formulario.value.ano || '',
+          horimetro: formulario.value.horimetro || '',
+          cliente: formulario.value.cliente || '',
+          cidade: formulario.value.cidade || cidadeCadastro.value || '',
+          vendedor: nomeUsuarioCadastro.value || 'Desconhecido',
+          dataAvaliacao: new Date().toISOString(),
+          checklistAvaliacao: JSON.parse(JSON.stringify(itens.value)),
+          fotosGerais: JSON.parse(JSON.stringify(fotosGerais.value)),
+          assinaturasVenda: JSON.parse(JSON.stringify(assinaturas.value)),
+          status: 'avaliada',
+          pdfNome: `${serieTrim}-avaliacao-comercial`,
+        })
+        console.log('✅ Avaliação salva no Firestore para gerente')
+      }
+    } catch (fsErr) {
+      console.warn('⚠️ Falha ao salvar avaliação no Firestore:', fsErr.message)
+    }
+
     // Remove o rascunho correspondente se existir
     if (rascunhoId.value) {
       await removerRascunho(rascunhoId.value)

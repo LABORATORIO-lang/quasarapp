@@ -11,6 +11,7 @@
     </div>
 
     <div class="row q-col-gutter-md">
+      <!-- Checklist -->
       <div class="col-12 col-sm-4">
         <q-card
           class="bg-grey-9 text-white custom-card"
@@ -38,6 +39,7 @@
         </q-card>
       </div>
 
+      <!-- Consórcio -->
       <div class="col-12 col-sm-4">
         <q-card
           class="bg-grey-9 text-white custom-card"
@@ -65,6 +67,7 @@
         </q-card>
       </div>
 
+      <!-- Usados -->
       <div class="col-12 col-sm-4">
         <q-card
           class="bg-grey-9 text-white custom-card"
@@ -92,7 +95,35 @@
         </q-card>
       </div>
 
-      <!-- Ver Estoque e Trânsito - só gerente_comercial e master -->
+      <!-- 🆕 Despachar Usadas — só gerente_comercial e master -->
+      <div v-if="temAcesso('gerente_comercial')" class="col-12 col-sm-4">
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="router.push('/inicio/comercial/despacho-usadas')"
+        >
+          <q-card-section class="q-pa-sm">
+            <div class="row items-center no-wrap q-col-gutter-sm">
+              <div class="col-auto">
+                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+                  <q-icon name="local_shipping" />
+                </q-avatar>
+              </div>
+              <div class="col">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">Despachar Usadas</div>
+                <div class="text-caption text-grey-5 card-description">
+                  Crie despachos de máquinas avaliadas para outras unidades.
+                </div>
+              </div>
+              <div class="col-auto">
+                <q-icon name="arrow_forward" color="orange-8" size="20px" />
+              </div>
+            </div>
+          </q-card-section>
+        </q-card>
+      </div>
+
+      <!-- Ver Estoque e Trânsito — só gerente_comercial e master -->
       <div v-if="temAcesso('gerente_comercial')" class="col-12 col-sm-4">
         <q-card
           class="bg-grey-9 text-white custom-card"
@@ -155,15 +186,12 @@ onMounted(async () => {
     border-color 0.2s;
   cursor: pointer;
 }
-
 .custom-card:hover {
   border-color: #ff9800;
 }
-
 .icon-box {
   border: 1px solid #ff9800;
 }
-
 .card-description {
   line-height: 1.35;
 }

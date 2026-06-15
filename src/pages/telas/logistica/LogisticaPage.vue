@@ -6,6 +6,7 @@
     </div>
 
     <div class="column q-gutter-md">
+      <!-- Entregas Pendentes -->
       <q-card
         clickable
         class="bg-grey-9 text-white custom-card"
@@ -17,26 +18,49 @@
             <q-avatar size="48px" color="orange-8" text-color="black">
               <q-icon name="local_shipping" size="28px" />
             </q-avatar>
-
-            <q-badge
-              v-if="totalPendentes > 0"
-              color="red-7"
-              floating
-              rounded
-              class="text-weight-bold flex flex-center shadow-2 pulse-badge"
-              style="padding: 4px 6px; font-size: 11px; top: -4px; right: -4px"
-            >
-              {{ totalPendentes }}
-            </q-badge>
+            <q-badge v-if="totalPendentesEntregas > 0" color="red-7" floating rounded>...</q-badge>
           </div>
-
           <div class="q-ml-md col">
             <div class="text-subtitle1 text-weight-bold row items-center">Entregas Pendentes</div>
             <div class="text-caption text-grey-5">
               Máquinas vendidas aguardando entrega ao cliente
             </div>
           </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
 
+      <!-- 🆕 Carregar Usadas (Negociação) -->
+      <q-card
+        clickable
+        class="bg-grey-9 text-white custom-card"
+        style="border: 1px solid #333; border-radius: 8px"
+        @click="$router.push('/inicio/logistica/carregar-usada')"
+      >
+        <q-card-section class="row items-center no-wrap">
+          <div class="relative-position">
+            <q-avatar size="48px" color="purple-6" text-color="white">
+              <q-icon name="swap_horiz" size="28px" />
+            </q-avatar>
+            <q-badge
+              v-if="totalPendentesUsadas > 0"
+              color="red-7"
+              floating
+              rounded
+              class="text-weight-bold flex flex-center shadow-2 pulse-badge"
+              style="padding: 4px 6px; font-size: 11px; top: -4px; right: -4px"
+            >
+              {{ totalPendentesUsadas }}
+            </q-badge>
+          </div>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold row items-center text-purple-4">
+              Carregar Usadas
+            </div>
+            <div class="text-caption text-grey-5">
+              Máquinas de negociação para levar a outra unidade
+            </div>
+          </div>
           <q-icon name="chevron_right" color="grey-6" size="24px" />
         </q-card-section>
       </q-card>
@@ -90,6 +114,31 @@ const consultarEntregasPendentes = async () => {
     console.error('Erro ao contabilizar entregas pendentes:', error)
   }
 }
+const totalPendentesUsadas = ref(0)
+
+const consultarDespachosPendentes = async () => {
+  try {
+    const { query, collection, where, getDocs } = await import('firebase/firestore')
+    const { db } = await import('src/boot/firebase')
+    const { getAuth } = await import('firebase/auth')
+    const uid = getAuth().currentUser?.uid
+    if (!uid) return
+    const q = query(
+      collection(db, 'despachos_usados'),
+      where('motoristaUid', '==', uid),
+      where('status', '==', 'despachado'),
+    )
+    const snap = await getDocs(q)
+    totalPendentesUsadas.value = snap.size
+  } catch (e) {
+    console.warn('Erro ao buscar despachos:', e)
+  }
+}
+
+onMounted(() => {
+  consultarEntregasPendentes()
+  consultarDespachosPendentes()
+})
 
 // Inicializa a consulta no ciclo de vida do componente
 onMounted(consultarEntregasPendentes)
