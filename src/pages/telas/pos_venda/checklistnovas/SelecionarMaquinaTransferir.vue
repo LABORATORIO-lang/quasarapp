@@ -717,13 +717,14 @@ const initCanvas = async () => {
 }
 
 const startDrawing = (e) => {
+  if (!ctx || !canvasRef.value) return
   isDrawing = true
   ctx.beginPath()
   ctx.moveTo(e.offsetX, e.offsetY)
 }
 
 const draw = (e) => {
-  if (!isDrawing) return
+  if (!isDrawing || !ctx || !canvasRef.value) return
   ctx.lineTo(e.offsetX, e.offsetY)
   ctx.stroke()
 }
@@ -734,6 +735,7 @@ const stopDrawing = () => {
 
 const startDrawingTouch = (e) => {
   e.preventDefault()
+  if (!ctx || !canvasRef.value) return
   const touch = e.touches[0]
   const rect = canvasRef.value.getBoundingClientRect()
   isDrawing = true
@@ -743,7 +745,7 @@ const startDrawingTouch = (e) => {
 
 const drawTouch = (e) => {
   e.preventDefault()
-  if (!isDrawing) return
+  if (!isDrawing || !ctx || !canvasRef.value) return
   const touch = e.touches[0]
   const rect = canvasRef.value.getBoundingClientRect()
   ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top)
@@ -834,7 +836,8 @@ const confirmarTransferencia = async () => {
     $q.loading.show({ message: 'Processando...' })
 
     const serie = maquinaSelecionada.value.serie
-    const dataHoje = new Date().toISOString().slice(0, 10)
+    const dataHoje = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-')
+
     const maquinaSnap = await getDoc(doc(db, 'maquinas', serie))
     const historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
     const numeroAcao = historicoAtual.length + 1
@@ -915,47 +918,61 @@ const confirmarTransferencia = async () => {
       const token = tipoFrete.value === 'terceiro' ? serie + '-' + Date.now().toString(36) : ''
       const linkCliente = token ? `${window.location.origin}/#/verificacao/${token}` : ''
 
-      await updateDoc(doc(db, 'maquinas', serie), {
-        status: 'aguardando_entrega_cliente',
-        unidadeDestino: nomeCliente.value,
-        observacaoGeral: observacaoAcumulada,
-        checklistEntrada: checklistAcumulado,
-        ultimaAtualizacao: Timestamp.now(),
-        historico: arrayUnion({
-          tipo: 'venda',
-          unidade: maquinaSelecionada.value.unidadeAtual,
-          cliente: nomeCliente.value,
-          data: dataHoje,
-          motorista: motoristaFinal,
-          responsavel: assinaturas.value.responsavelNome || '',
-          pdfNome: pdfNome,
-          numero: numeroAcao,
-          observacaoGeral: observacaoGeral.value, // Para o cliente, enviamos apenas o texto limpo
-          linkCliente: linkCliente,
-        }),
-      })
+      // PASSO 1: Atualiza máquina
+      try {
+        await updateDoc(doc(db, 'maquinas', serie), {
+          status: 'aguardando_entrega_cliente',
+          unidadeDestino: nomeCliente.value,
+          observacaoGeral: observacaoAcumulada,
+          checklistEntrada: checklistAcumulado,
+          ultimaAtualizacao: Timestamp.now(),
+          historico: arrayUnion({
+            tipo: 'venda',
+            unidade: maquinaSelecionada.value.unidadeAtual,
+            cliente: nomeCliente.value,
+            data: dataHoje,
+            motorista: motoristaFinal,
+            responsavel: assinaturas.value.responsavelNome || '',
+            pdfNome: pdfNome,
+            numero: numeroAcao,
+            observacaoGeral: observacaoGeral.value,
+            linkCliente: linkCliente,
+          }),
+        })
+        console.log('✅ PASSO 1: Máquina atualizada')
+      } catch (e) {
+        console.error('❌ ERRO PASSO 1 (maquinas):', e.message)
+        throw e
+      }
 
       if (tipoFrete.value === 'terceiro') {
-        await setDoc(doc(db, 'entregas_cliente', token), {
-          token: token,
-          serie: serie,
-          modelo: maquinaSelecionada.value.modelo,
-          marca: maquinaSelecionada.value.marca || '',
-          ano: maquinaSelecionada.value.ano || '',
-          horimetro: maquinaSelecionada.value.horimetro || '',
-          cliente: nomeCliente.value,
-          endereco: assinaturas.value.enderecoCliente || '',
-          cpfCnpj: assinaturas.value.motoristaCpf || '',
-          unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
-          checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
-          motorista: motoristaFinal,
-          data: dataHoje,
-          criadaEm: Timestamp.now(),
-          expiraEm: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pendente',
-          assinaturaCliente: null,
-          observacoesCliente: {},
-        })
+        // PASSO 2: Cria entrega_cliente
+        try {
+          await setDoc(doc(db, 'entregas_cliente', token), {
+            token: token,
+            serie: serie,
+            modelo: maquinaSelecionada.value.modelo,
+            marca: maquinaSelecionada.value.marca || '',
+            ano: maquinaSelecionada.value.ano || '',
+            horimetro: maquinaSelecionada.value.horimetro || '',
+            cliente: nomeCliente.value,
+            endereco: assinaturas.value.enderecoCliente || '',
+            cpfCnpj: assinaturas.value.motoristaCpf || '',
+            unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
+            checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
+            motorista: motoristaFinal,
+            data: dataHoje,
+            criadaEm: Timestamp.now(),
+            expiraEm: Timestamp.fromDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)),
+            status: 'pendente',
+            assinaturaCliente: null,
+            observacoesCliente: {},
+          })
+          console.log('✅ PASSO 2: entregas_cliente criado')
+        } catch (e) {
+          console.error('❌ ERRO PASSO 2 (entregas_cliente):', e.message)
+          throw e
+        }
 
         $q.dialog({
           dark: true,
@@ -969,27 +986,29 @@ const confirmarTransferencia = async () => {
           $q.notify({ type: 'positive', message: 'Link copiado!' })
         })
       } else {
-        await addDoc(collection(db, 'notificacoes'), {
-          tipo: 'entrega_cliente',
-          serie: serie,
-          modelo: maquinaSelecionada.value.modelo,
-          de: maquinaSelecionada.value.unidadeAtual,
-          cliente: nomeCliente.value,
-          endereco: assinaturas.value.enderecoCliente || '',
-          cpfCnpj: assinaturas.value.motoristaCpf || '',
-          data: dataHoje,
-          lida: false,
-          criadaEm: Timestamp.now(),
-          checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
-          motorista: motoristaFinal,
-          motoristaUid: motoristaEntrega.value || '',
-        })
+        // PASSO 3: Cria notificação
+        try {
+          await addDoc(collection(db, 'notificacoes'), {
+            tipo: 'entrega_cliente',
+            serie: serie,
+            modelo: maquinaSelecionada.value.modelo,
+            de: maquinaSelecionada.value.unidadeAtual,
+            cliente: nomeCliente.value,
+            endereco: assinaturas.value.enderecoCliente || '',
+            cpfCnpj: assinaturas.value.motoristaCpf || '',
+            data: dataHoje,
+            lida: false,
+            criadaEm: Timestamp.now(),
+            checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
+            motorista: motoristaFinal,
+            motoristaUid: motoristaEntrega.value || '',
+          })
+          console.log('✅ PASSO 3: notificacao criada')
+        } catch (e) {
+          console.error('❌ ERRO PASSO 3 (notificacoes):', e.message)
+          throw e
+        }
       }
-
-      $q.notify({
-        type: 'positive',
-        message: `Máquina ${serie} vendida para ${nomeCliente.value}`,
-      })
     }
 
     // Geração do PDF

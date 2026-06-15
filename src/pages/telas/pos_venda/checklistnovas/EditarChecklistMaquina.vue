@@ -18,6 +18,85 @@
     </div>
 
     <div v-else class="column q-gutter-md">
+      <!-- DADOS DA MÁQUINA -->
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Dados da Máquina
+      </div>
+      <q-card class="bg-grey-9" style="border-radius: 8px; border: 1px solid #424242">
+        <q-card-section class="q-gutter-y-md">
+          <div class="row q-col-gutter-sm">
+            <div class="col-12 col-sm-6">
+              <q-input
+                v-model="formulario.serie"
+                label="Nº de Série"
+                dark
+                outlined
+                dense
+                color="orange-8"
+              />
+            </div>
+            <div class="col-12 col-sm-6">
+              <q-input
+                v-model="formulario.modelo"
+                label="Modelo"
+                dark
+                outlined
+                dense
+                color="orange-8"
+              />
+            </div>
+          </div>
+          <div class="row q-col-gutter-sm">
+            <div class="col-6">
+              <q-input
+                v-model="formulario.marca"
+                label="Marca"
+                dark
+                outlined
+                dense
+                color="orange-8"
+              />
+            </div>
+            <div class="col-6">
+              <q-input v-model="formulario.ano" label="Ano" dark outlined dense color="orange-8" />
+            </div>
+          </div>
+          <div class="row q-col-gutter-sm">
+            <div class="col-6">
+              <q-input
+                v-model="formulario.unidadeAtual"
+                label="Unidade Atual"
+                dark
+                outlined
+                dense
+                color="orange-8"
+              />
+            </div>
+            <div class="col-6">
+              <q-input
+                v-model="formulario.horimetro"
+                type="number"
+                label="Horímetro"
+                dark
+                outlined
+                dense
+                color="orange-8"
+              />
+            </div>
+          </div>
+          <q-input
+            v-model="formulario.observacaoGeral"
+            label="Observação Geral do Processo"
+            dark
+            outlined
+            dense
+            color="orange-8"
+            type="textarea"
+            rows="2"
+          />
+        </q-card-section>
+      </q-card>
+
       <!-- Lista de itens editáveis -->
       <q-card class="bg-grey-9" style="border-radius: 8px; border: 1px solid #424242">
         <q-card-section>
@@ -27,7 +106,7 @@
 
           <div v-for="(item, idx) in itens" :key="idx" class="q-mb-md">
             <div class="row items-center justify-between">
-              <div class="text-white text-body2">{{ item.texto }}</div>
+              <div class="text-white text-body2 col">{{ item.texto }}</div>
               <q-btn-toggle
                 v-model="item.novaResposta"
                 toggle-color="orange-8"
@@ -37,22 +116,76 @@
                 class="q-ml-sm"
               />
             </div>
+
+            <!-- Fotos do item -->
+            <div v-if="item.fotos && item.fotos.length > 0" class="row q-gutter-xs q-mt-sm">
+              <div
+                v-for="(foto, fIdx) in item.fotos"
+                :key="fIdx"
+                class="relative-position"
+                style="width: 60px; height: 60px"
+              >
+                <q-img :src="foto" style="height: 100%; width: 100%; border-radius: 6px" />
+                <q-btn
+                  round
+                  dense
+                  size="xs"
+                  color="red"
+                  icon="close"
+                  style="position: absolute; top: -5px; right: -5px"
+                  @click.stop="removerFoto(item, fIdx)"
+                />
+              </div>
+            </div>
+
+            <div class="row q-mt-sm q-gutter-sm items-center">
+              <q-btn
+                flat
+                dense
+                size="sm"
+                color="orange-8"
+                icon="add_a_photo"
+                label="Adicionar Foto"
+                @click="abrirCameraItem(idx)"
+              />
+              <q-input
+                v-model="item.observacao"
+                label="Observação do item"
+                dark
+                outlined
+                dense
+                color="orange-8"
+                class="col"
+              />
+            </div>
+
             <q-separator color="grey-8" class="q-mt-sm" />
           </div>
         </q-card-section>
       </q-card>
 
-      <!-- Observação -->
+      <!-- Input escondido para foto de item -->
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        id="file-input-item-pos"
+        style="display: none"
+        @change="processarFotoItem"
+      />
+
+      <!-- Observação geral (motivo da edição) -->
       <q-card class="bg-grey-9" style="border-radius: 8px; border: 1px solid #424242">
         <q-card-section>
           <q-input
             v-model="observacao"
-            label="Observação (motivo da alteração)"
+            label="Observação Geral (motivo da alteração) *"
             dark
             outlined
             color="orange-8"
             type="textarea"
             rows="3"
+            :rules="[(val) => !!val || 'Obrigatório descrever o motivo da edição']"
           />
         </q-card-section>
       </q-card>
@@ -181,7 +314,6 @@
               >
                 ASSINE AQUI
               </div>
-
               <canvas
                 ref="canvasRef"
                 class="fit absolute-top-left"
@@ -194,7 +326,6 @@
                 @touchmove="drawTouch"
                 @touchend="stopDrawing"
               />
-
               <q-btn
                 round
                 unelevated
@@ -258,8 +389,19 @@
               :key="i"
               class="text-caption text-orange q-mt-xs"
             >
-              {{ alt.item }}: {{ alt.de }} → {{ alt.para }}
+              {{ alt.item || alt.campo }}: {{ alt.de }} → {{ alt.para }}
             </div>
+            <q-btn
+              v-if="edicao.pdfNome"
+              flat
+              dense
+              size="sm"
+              color="orange-8"
+              icon="picture_as_pdf"
+              label="Ver PDF"
+              class="q-mt-xs"
+              @click="abrirPdfEdicao(edicao.pdfNome)"
+            />
             <q-separator color="grey-8" class="q-mt-sm" />
           </div>
         </q-card-section>
@@ -284,13 +426,18 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { db } from 'src/boot/firebase'
+import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
+import { salvarEdicaoPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
+import localforage from 'localforage'
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
+
+import { API_BASE_URL } from 'src/utils/ServidorApi'
 
 const serie = ref('')
 const modelo = ref('')
@@ -301,19 +448,46 @@ const carregando = ref(false)
 const edicoesAnteriores = ref([])
 const assinaturaImagem = ref(null)
 const dialogAssinaturaAberto = ref(false)
-// Canvas
 const canvasRef = ref(null)
 const isDrawing = ref(false)
 const hasSigned = ref(false)
 let lastX = 0
 let lastY = 0
 
+const removerFoto = (item, index) => {
+  item.fotos.splice(index, 1)
+  temAlteracoes.value = true
+}
+function tirarUndefined(objeto) {
+  const resultado = {}
+  for (const chave in objeto) {
+    const valor = objeto[chave]
+    if (valor !== undefined) {
+      resultado[chave] = valor
+    }
+  }
+  return resultado
+}
+const formulario = ref({
+  serie: '',
+  modelo: '',
+  marca: '',
+  ano: '',
+  unidadeAtual: '',
+  horimetro: '',
+  observacaoGeral: '',
+})
+const formularioOriginal = ref(null)
+const fotoItemIndex = ref(null)
+
 const temAlteracoes = computed(() => {
-  return itens.value.some((item) => item.novaResposta !== item.resposta)
+  const itensAlterados = itens.value.some((item) => item.novaResposta !== item.resposta)
+  const camposAlterados =
+    JSON.stringify(formulario.value) !== JSON.stringify(formularioOriginal.value)
+  return itensAlterados || camposAlterados
 })
 
 const opcoesResposta = (item) => {
-  // Detecta tipo de opções baseado na resposta atual
   if (
     ['BOM', 'ATENCAO', 'RUIM'].includes(item.resposta) ||
     ['BOM', 'ATENCAO', 'RUIM'].includes(item.novaResposta)
@@ -341,7 +515,6 @@ const opcoesResposta = (item) => {
     { label: 'FALTA', value: 'FALTA' },
   ]
 }
-// Captura assinatura
 
 const confirmarAssinatura = () => {
   if (!hasSigned.value) {
@@ -360,10 +533,25 @@ const carregarChecklist = async () => {
     if (!serie.value) return
 
     const docSnap = await getDoc(doc(db, 'maquinas', serie.value))
-    if (!docSnap.exists()) return
+    if (!docSnap.exists()) {
+      $q.notify({ type: 'warning', message: 'Máquina não encontrada.' })
+      return
+    }
 
     const dados = docSnap.data()
     modelo.value = dados.modelo || ''
+
+    formulario.value = {
+      serie: dados.serie || '',
+      modelo: dados.modelo || '',
+      marca: dados.marca || '',
+      ano: dados.ano || '',
+      unidadeAtual: dados.unidadeAtual || '',
+      horimetro: dados.horimetro || '',
+      observacaoGeral: dados.observacaoGeral || '',
+    }
+    formularioOriginal.value = JSON.parse(JSON.stringify(formulario.value))
+
     edicoesAnteriores.value = dados.edicoesChecklist || []
 
     if (dados.checklistEntrada && Array.isArray(dados.checklistEntrada)) {
@@ -380,6 +568,36 @@ const carregarChecklist = async () => {
   }
 }
 
+const abrirCameraItem = (index) => {
+  fotoItemIndex.value = index
+  document.getElementById('file-input-item-pos')?.click()
+}
+
+const processarFotoItem = (event) => {
+  const file = event.target.files[0]
+  const idx = fotoItemIndex.value
+  if (!file || idx === null) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const item = itens.value[idx]
+    if (!item.fotos) item.fotos = []
+    item.fotos.push(e.target.result)
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+  fotoItemIndex.value = null
+}
+
+const abrirPdfEdicao = (pdfNome) => {
+  if (!pdfNome) {
+    $q.notify({ type: 'warning', message: 'PDF não disponível.' })
+    return
+  }
+  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(pdfNome)}`
+  window.open(url, '_blank')
+}
+
 const salvarEdicao = async () => {
   if (!nomeResponsavel.value) {
     $q.notify({ type: 'warning', message: 'Preencha o nome do responsável.' })
@@ -390,62 +608,233 @@ const salvarEdicao = async () => {
     return
   }
 
-  try {
-    $q.loading.show({ message: 'Salvando alterações...' })
+  const alteracoesItens = []
+  itens.value.forEach((item) => {
+    if (item.novaResposta !== item.resposta) {
+      alteracoesItens.push({ item: item.texto, de: item.resposta, para: item.novaResposta })
+    }
+  })
 
-    const auth = getAuth()
-    const user = auth.currentUser
-
-    // Monta lista de alterações
-    const alteracoes = []
-    itens.value.forEach((item) => {
-      if (item.novaResposta !== item.resposta) {
-        alteracoes.push({
-          item: item.texto,
-          de: item.resposta,
-          para: item.novaResposta,
-        })
-      }
+  const alteracoesFormulario = []
+  if (formulario.value.serie !== formularioOriginal.value?.serie)
+    alteracoesFormulario.push({
+      campo: 'Série',
+      de: formularioOriginal.value?.serie,
+      para: formulario.value.serie,
+    })
+  if (formulario.value.modelo !== formularioOriginal.value?.modelo)
+    alteracoesFormulario.push({
+      campo: 'Modelo',
+      de: formularioOriginal.value?.modelo,
+      para: formulario.value.modelo,
+    })
+  if (formulario.value.marca !== formularioOriginal.value?.marca)
+    alteracoesFormulario.push({
+      campo: 'Marca',
+      de: formularioOriginal.value?.marca,
+      para: formulario.value.marca,
+    })
+  if (formulario.value.ano !== formularioOriginal.value?.ano)
+    alteracoesFormulario.push({
+      campo: 'Ano',
+      de: formularioOriginal.value?.ano,
+      para: formulario.value.ano,
+    })
+  if (formulario.value.unidadeAtual !== formularioOriginal.value?.unidadeAtual)
+    alteracoesFormulario.push({
+      campo: 'Unidade',
+      de: formularioOriginal.value?.unidadeAtual,
+      para: formulario.value.unidadeAtual,
+    })
+  if (formulario.value.horimetro !== formularioOriginal.value?.horimetro)
+    alteracoesFormulario.push({
+      campo: 'Horímetro',
+      de: formularioOriginal.value?.horimetro,
+      para: formulario.value.horimetro,
     })
 
-    if (alteracoes.length === 0) {
-      $q.notify({ type: 'info', message: 'Nenhuma alteração detectada.' })
-      return
+  const alteracoes = [...alteracoesItens, ...alteracoesFormulario]
+
+  if (alteracoes.length === 0) {
+    $q.notify({ type: 'info', message: 'Nenhuma alteração detectada. Nada para salvar.' })
+    return
+  }
+
+  if (!observacao.value || observacao.value.trim().length < 5) {
+    $q.notify({
+      type: 'warning',
+      message: 'Descreva o motivo da edição nas observações (mínimo 5 caracteres).',
+    })
+    return
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const listaHtml = alteracoes
+        .map((a) => `<li><b>${a.item || a.campo}:</b> ${a.de} → ${a.para}</li>`)
+        .join('')
+      $q.dialog({
+        dark: true,
+        title: '⚠️ Confirmar Edição',
+        html: true,
+        message: `
+          <div style="color:#ccc">
+            As seguintes alterações serão salvas:<br><br>
+            <ul style="padding-left:16px">${listaHtml}</ul>
+            <br>
+            <b>Observação:</b> ${observacao.value}<br>
+            <b>Responsável:</b> ${nomeResponsavel.value}
+          </div>`,
+        ok: { label: 'Sim, salvar edição', color: 'orange-8', flat: false },
+        cancel: { label: 'Cancelar', color: 'grey-5', flat: true },
+        persistent: true,
+      })
+        .onOk(resolve)
+        .onCancel(reject)
+    })
+  } catch {
+    return
+  }
+
+  try {
+    $q.loading.show({ message: 'Gerando PDF e salvando edição...' })
+    const auth = getAuth()
+    const user = auth.currentUser
+    const agora = new Date()
+    const dataHoraFormatada =
+      agora.toLocaleDateString('pt-BR') +
+      ' às ' +
+      agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const novoChecklist = itens.value.map((item) => {
+      const { novaResposta, ...resto } = item
+      return tirarUndefined({ ...resto, resposta: novaResposta })
+    })
+
+    const dadosParaPdf = {
+      tipoPdf: 'edicao_checklist',
+      tipo: 'Edição de Checklist',
+      nomeMaquina: formulario.value.modelo || 'Equipamento',
+      dadosFormulario: formulario.value,
+      respostasChecklist: novoChecklist,
+      assinaturas: {
+        responsavelNome: nomeResponsavel.value,
+        responsavelImagem: assinaturaImagem.value,
+        motoristaNome: '-',
+      },
+      fotosGerais: {},
+      dataConclusao: agora.toISOString(),
+      dataHoraFormatada,
+      userName: user?.displayName || nomeResponsavel.value,
+      observacaoGeral: observacao.value,
     }
 
-    // Monta registro da edição
-    const registroEdicao = {
-      data: new Date().toISOString(),
+    const pdfBase64 = await gerarChecklistPdf(dadosParaPdf, true)
+
+    // Calcula numeroAcao considerando todos os eventos (historico normal + historico_serie offline)
+    const chaveSerie = `historico_serie_${serie.value}`
+    const historicoSerie = (await localforage.getItem(chaveSerie)) || []
+
+    let historicoAtual = []
+    let numeroAcao = 1
+
+    try {
+      if (navigator.onLine) {
+        const maquinaSnap = await getDoc(doc(db, 'maquinas', serie.value))
+        historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
+        numeroAcao = historicoAtual.length + 1
+      } else {
+        numeroAcao = historicoSerie.length + 1
+      }
+    } catch (dbErr) {
+      console.warn('Modo offline ativo na leitura do número de ação:', dbErr)
+      numeroAcao = historicoSerie.length + 1
+    }
+
+    const pdfNome = `${serie.value}-${numeroAcao}-edicao`
+    const pdfSalvo = { success: false, path: '' }
+
+    try {
+      const base64Limpo = pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64
+      const servidorOnline = await verificarStatusServidor()
+      if (servidorOnline.online) {
+        // Função corrigida!
+        const resp = await salvarEdicaoPosVenda(
+          formulario.value.unidadeAtual || '',
+          pdfNome,
+          base64Limpo,
+        )
+        pdfSalvo.success = true
+        pdfSalvo.path = resp.path || pdfNome
+      }
+    } catch (e) {
+      console.warn('Servidor offline, não foi possível enviar PDF:', e)
+    }
+
+    // Guarda PDF no localforage (fallback/offline)
+    const jaExisteLocal = historicoSerie.some((h) => h.id === `edicao-${Date.now()}`)
+    if (!jaExisteLocal) {
+      historicoSerie.push({
+        id: `edicao-${Date.now()}`,
+        tipo: 'edicao',
+        serie: serie.value,
+        unidadeAtual: formulario.value.unidadeAtual,
+        data: new Date().toISOString(),
+        pdfNome,
+      })
+      await localforage.setItem(chaveSerie, historicoSerie)
+    }
+
+    const registroEdicao = tirarUndefined({
+      data: agora.toISOString(),
+      tipo: 'edicao',
       responsavel: nomeResponsavel.value,
       uid: user?.uid || null,
       assinatura: assinaturaImagem.value,
-
-      observacao: observacao.value || '',
-      alteracoes,
-    }
-
-    // Atualiza checklistEntrada com as novas respostas
-    const novoChecklist = itens.value.map((item) => {
-      const { novaResposta, ...resto } = item
-      return { ...resto, resposta: novaResposta }
+      observacao: observacao.value,
+      alteracoes: tirarUndefined(alteracoes),
+      pdfNome,
     })
 
-    // Atualiza Firebase
+    const itemHistorico = tirarUndefined({
+      tipo: 'edicao',
+      numero: numeroAcao,
+      data: new Date().toISOString(),
+      unidadeAtual: formulario.value.unidadeAtual,
+      responsavel: nomeResponsavel.value,
+      pdfNome,
+      observacao: observacao.value,
+      alteracoes: tirarUndefined(alteracoes),
+      idUnicoAcao: `edicao-${Date.now()}`,
+    })
+
     const maquinaRef = doc(db, 'maquinas', serie.value)
     const docSnap = await getDoc(maquinaRef)
     const dadosAtuais = docSnap.data()
-    const edicoesExistentes = dadosAtuais.edicoesChecklist || []
 
-    await updateDoc(maquinaRef, {
+    const payloadFirebase = {
       checklistEntrada: novoChecklist,
-      edicoesChecklist: [...edicoesExistentes, registroEdicao],
-    })
+      serie: formulario.value.serie || null,
+      modelo: formulario.value.modelo || null,
+      marca: formulario.value.marca || null,
+      ano: formulario.value.ano || null,
+      unidadeAtual: formulario.value.unidadeAtual || null,
+      horimetro: formulario.value.horimetro || null,
+      edicoesChecklist: [...(dadosAtuais.edicoesChecklist || []), registroEdicao],
+      historico: arrayUnion(itemHistorico),
+      ultimaAtualizacao: Timestamp.now(),
+    }
 
-    $q.notify({ type: 'positive', message: 'Checklist atualizado com sucesso!' })
+    await updateDoc(maquinaRef, payloadFirebase)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Edição salva, PDF enviado e registrada no histórico com sucesso!',
+    })
     router.back()
   } catch (e) {
     console.error('Erro ao salvar edição:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao salvar alterações.' })
+    $q.notify({ type: 'negative', message: 'Erro ao salvar edição.' })
   } finally {
     $q.loading.hide()
   }
@@ -522,6 +911,7 @@ onMounted(() => {
   nextTick(() => initCanvas())
 })
 </script>
+
 <style scoped>
 .signature-container {
   position: relative;

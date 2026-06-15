@@ -434,8 +434,16 @@ const bloqueioWatchUnidade = ref(false)
 const userName = ref('')
 const cidadeUsuario = ref('')
 const regrasAno = [(val) => (val >= 1900 && val <= 2100) || 'Ano inválido']
+const hojeLocal = () => {
+  const d = new Date()
+  const ano = d.getFullYear()
+  const mes = String(d.getMonth() + 1).padStart(2, '0')
+  const dia = String(d.getDate()).padStart(2, '0')
+  return `${ano}-${mes}-${dia}`
+}
+
 const formulario = ref({
-  data: new Date().toISOString().split('T')[0],
+  data: hojeLocal(),
   serie: '',
   modelo: '',
   marca: '',
@@ -1136,7 +1144,8 @@ const salvarChecklistNoTelemovel = async () => {
       respostasChecklist: checklistAcumulado,
       assinaturas: assinaturas.value,
       fotosGerais: fotosGerais.value,
-      dataConclusao: new Date().toISOString(),
+      dataConclusao: hojeLocal(),
+
       setor,
       userName: userName.value,
       dataHoraFormatada,
@@ -1227,7 +1236,8 @@ const salvarChecklistNoTelemovel = async () => {
       cliente: route.query.cliente || '',
       de: route.query.de || '',
       unidade: formulario.value.unidadeAtual,
-      data: new Date().toISOString().slice(0, 10),
+      data: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'),
+
       responsavel: assinaturas.value.responsavelNome || '',
       pdfNome: pdfNome,
       numero: numeroAcao,
@@ -1255,7 +1265,7 @@ const salvarChecklistNoTelemovel = async () => {
             payloadFirebase.modelo = formulario.value.modelo || ''
             payloadFirebase.marca = formulario.value.marca || ''
             payloadFirebase.ano = formulario.value.ano || ''
-            payloadFirebase.dataRecebimento = new Date().toISOString().slice(0, 10)
+            payloadFirebase.dataRecebimento = hojeLocal()
             await setDoc(maquinaRef, payloadFirebase, { merge: true })
           }
         }

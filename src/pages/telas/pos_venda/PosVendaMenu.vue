@@ -67,7 +67,9 @@
             <q-icon name="calculate" size="20px" />
           </q-avatar>
           <div class="q-ml-md col">
-            <div class="text-subtitle1 text-weight-bold text-orange-8">Cálculo de Plantio</div>
+            <div class="text-subtitle1 text-weight-bold text-orange-8">
+              Cálculo de Emenda de Plantio
+            </div>
             <div class="text-caption text-grey-5">Calculadora para emenda e ajustes de plantio</div>
           </div>
           <q-icon name="chevron_right" color="grey-6" size="24px" />

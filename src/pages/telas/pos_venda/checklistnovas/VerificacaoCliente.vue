@@ -51,7 +51,12 @@
         </q-card-section>
       </q-card>
 
-      <div class="text-subtitle2 text-grey-5 q-mb-sm">ITENS DE VERIFICAÇÃO</div>
+      <div class="row items-center justify-between q-mb-sm">
+        <div class="text-subtitle2 text-grey-5">ITENS DE VERIFICAÇÃO</div>
+        <q-badge color="orange-8" class="text-black text-weight-bold">
+          {{ itensVerificados }} / {{ totalItens }} verificados
+        </q-badge>
+      </div>
       <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
         <q-list separator>
           <template v-for="(item, idx) in dados.checklistEntrada" :key="idx">
@@ -59,26 +64,30 @@
               <q-item-section>
                 <q-item-label class="text-white">{{ item.texto }}</q-item-label>
                 <q-item-label caption>
-                  <q-badge
-                    :color="
-                      item.resposta === 'SIM' || item.resposta === 'BOM'
-                        ? 'green-8'
-                        : item.resposta === 'NÃO' || item.resposta === 'RUIM'
-                          ? 'red-8'
-                          : 'grey-8'
-                    "
-                    class="q-mr-xs"
-                  >
-                    {{ item.resposta || 'N/A' }}
+                  <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
+                    Entrada: {{ item.resposta || 'N/A' }}
                   </q-badge>
-                  <span v-if="item.observacao" class="text-grey-5">{{ item.observacao }}</span>
+                  <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
+                    {{ item.observacao }}
+                  </span>
                 </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-checkbox
+                  v-model="respostasCliente[idx]"
+                  :true-value="respostaPositiva(item.resposta)"
+                  :false-value="''"
+                  color="orange-8"
+                  dark
+                  checked-icon="check_circle"
+                  unchecked-icon="radio_button_unchecked"
+                />
               </q-item-section>
             </q-item>
             <div class="q-px-md q-pb-sm">
               <q-input
                 v-model="observacoesCliente[idx]"
-                label="Observação do cliente"
+                label="Obs do item"
                 dark
                 dense
                 filled
@@ -91,7 +100,9 @@
         </q-list>
       </q-card>
 
-      <div class="text-subtitle2 text-grey-5 q-mb-sm">DADOS DO RECEBEDOR</div>
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Dados do Recebedor
+      </div>
       <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
         <q-card-section class="q-gutter-y-sm">
           <q-input
@@ -124,41 +135,130 @@
       </q-card>
 
       <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs q-mt-lg">
-        Assinatura do Cliente
+        Validação e Assinatura
       </div>
 
       <q-card
-        class="bg-grey-10"
-        style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
-        :style="assinado ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)' : ''"
+        class="bg-grey-9 shadow-5 q-mb-lg"
+        style="border-radius: 12px; border: 1px solid #424242"
       >
-        <q-card-section class="q-pa-md">
-          <div class="flex justify-between items-center q-mb-md">
-            <div class="text-subtitle2 text-weight-bold text-white flex items-center">
-              <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" />
-              Cliente
-            </div>
-            <q-badge
-              :color="assinado ? 'green-8' : 'grey-8'"
-              :text-color="assinado ? 'white' : 'grey-4'"
-              rounded
-              class="q-px-sm q-py-xs text-weight-bold"
-            >
-              <q-icon :name="assinado ? 'check_circle' : 'pending'" class="q-mr-xs" size="14px" />
-              {{ assinado ? 'Assinado' : 'Pendente' }}
-            </q-badge>
-          </div>
+        <q-card-section class="q-pt-md">
+          <div class="row q-col-gutter-md">
+            <!-- CLIENTE / RECEBEDOR -->
+            <div class="col-12 col-md-6">
+              <q-card
+                class="bg-grey-10"
+                style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
+                :style="
+                  assinado
+                    ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)'
+                    : ''
+                "
+              >
+                <q-card-section class="q-pa-md">
+                  <div class="flex justify-between items-center q-mb-md">
+                    <div class="text-subtitle2 text-weight-bold text-white flex items-center">
+                      <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" />
+                      Cliente / Recebedor
+                    </div>
+                    <q-badge
+                      :color="assinado ? 'green-8' : 'grey-8'"
+                      :text-color="assinado ? 'white' : 'grey-4'"
+                      rounded
+                      class="q-px-sm q-py-xs text-weight-bold"
+                    >
+                      <q-icon
+                        :name="assinado ? 'check_circle' : 'pending'"
+                        class="q-mr-xs"
+                        size="14px"
+                      />
+                      {{ assinado ? 'Assinado' : 'Pendente' }}
+                    </q-badge>
+                  </div>
 
-          <q-btn
-            :color="assinado ? 'grey-8' : 'orange-8'"
-            :text-color="assinado ? 'white' : 'black'"
-            :icon="assinado ? 'draw' : 'gesture'"
-            :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
-            class="full-width text-weight-bold"
-            unelevated
-            style="border-radius: 6px"
-            @click="dialogAssinaturaAberto = true"
-          />
+                  <q-input
+                    v-model="nomeRecebedor"
+                    label="Nome completo digitado"
+                    dark
+                    filled
+                    dense
+                    color="orange-8"
+                    bg-color="grey-9"
+                    class="q-mb-md"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="edit_square" size="xs" color="grey-5" />
+                    </template>
+                  </q-input>
+
+                  <q-input
+                    v-model="cpfCnpjRecebedor"
+                    label="CPF (Obrigatório)"
+                    dark
+                    filled
+                    dense
+                    color="orange-8"
+                    bg-color="grey-9"
+                    class="q-mb-md"
+                    mask="###.###.###-##"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="badge" size="xs" color="grey-5" />
+                    </template>
+                  </q-input>
+
+                  <q-btn
+                    :color="assinado ? 'grey-8' : 'orange-8'"
+                    :text-color="assinado ? 'white' : 'black'"
+                    :icon="assinado ? 'draw' : 'gesture'"
+                    :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+                    class="full-width text-weight-bold"
+                    unelevated
+                    style="border-radius: 6px"
+                    @click="dialogAssinaturaAberto = true"
+                  />
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <!-- MOTORISTA (VISUALIZAÇÃO) -->
+            <div class="col-12 col-md-6">
+              <q-card class="bg-grey-10" style="border-radius: 8px; border: 1px solid #555">
+                <q-card-section class="q-pa-md">
+                  <div class="flex justify-between items-center q-mb-md">
+                    <div class="text-subtitle2 text-weight-bold text-white flex items-center">
+                      <q-icon name="local_shipping" class="q-mr-sm text-orange-8" size="sm" />
+                      Motorista / Entregador
+                    </div>
+                    <q-badge color="green-8" rounded class="q-px-sm q-py-xs text-weight-bold">
+                      <q-icon name="check_circle" class="q-mr-xs" size="14px" />
+                      Confirmado
+                    </q-badge>
+                  </div>
+
+                  <q-input
+                    :model-value="dados.motorista || 'Motorista Terceirizado'"
+                    label="Nome do Motorista"
+                    readonly
+                    dark
+                    filled
+                    dense
+                    color="orange-8"
+                    bg-color="grey-9"
+                    class="q-mb-md"
+                  >
+                    <template v-slot:prepend>
+                      <q-icon name="person" size="xs" color="grey-5" />
+                    </template>
+                  </q-input>
+
+                  <div class="text-caption text-grey-5 text-center">
+                    Assinatura do motorista coletada na unidade de origem.
+                  </div>
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
         </q-card-section>
       </q-card>
 
@@ -298,7 +398,7 @@
       />
 
       <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-        Preencha nome, documento válido e assine para confirmar
+        Verifique todos os itens, preencha nome, CPF válido e assine para confirmar
       </div>
     </div>
   </div>
@@ -310,7 +410,9 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
+import { getAuth, signInAnonymously } from 'firebase/auth'
 
+import { onUnmounted } from 'vue'
 // Importações dos geradores de infraestrutura de mídia adicionados (Melhoria #10)
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 import { salvarTransferenciaPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
@@ -343,8 +445,50 @@ const mascaraDocumento = computed(() => {
 
 const podeConfirmar = computed(() => {
   const docLimpo = cpfCnpjRecebedor.value ? cpfCnpjRecebedor.value.replace(/\D/g, '') : ''
-  return nomeRecebedor.value.trim() && validarDocumentoReal(docLimpo) && assinado.value
+  const nomeOk = nomeRecebedor.value.trim().length > 2
+  const docOk = validarDocumentoReal(docLimpo)
+  const assinaOk = assinado.value
+
+  // Todos os itens precisam ter resposta positiva (checkbox marcada)
+  const lista = dados.value.checklistEntrada || []
+  const todosRespondidos = lista.every((_, idx) => {
+    const r = (respostasCliente.value[idx] || '').toString().trim()
+    return r !== ''
+  })
+
+  return nomeOk && docOk && assinaOk && todosRespondidos
 })
+
+const respostasCliente = ref({})
+const totalItens = computed(() => {
+  return (dados.value.checklistEntrada || []).length
+})
+
+const itensVerificados = computed(() => {
+  return Object.values(respostasCliente.value).filter((v) => v && v !== '').length
+})
+
+const respostaPositiva = (respostaEntrada) => {
+  const resp = (respostaEntrada || '').toUpperCase()
+  if (['BOM', 'ATENCAO', 'ATENÇÃO', 'RUIM'].includes(resp)) return 'BOM'
+  if (['OK', 'FALTA'].includes(resp)) return 'OK'
+  return 'SIM'
+}
+
+const corStatus = (resposta) => {
+  const map = {
+    BOM: 'positive',
+    ATENCAO: 'warning',
+    ATENÇÃO: 'warning',
+    RUIM: 'negative',
+    SIM: 'positive',
+    NAO: 'negative',
+    NÃO: 'negative',
+    OK: 'positive',
+    FALTA: 'negative',
+  }
+  return map[resposta] || 'grey'
+}
 
 const validarDocumentoReal = (valor) => {
   if (!valor) return false
@@ -405,11 +549,19 @@ function validarCNPJ(cnpj) {
 
 onMounted(async () => {
   try {
+    // Segurança: aguarda login anônimo estar 100% pronto
+    const auth = getAuth()
+    if (!auth.currentUser) {
+      await signInAnonymously(auth)
+    }
+    console.log('Auth anônimo OK:', auth.currentUser?.uid)
+
     const token = route.params.token
     if (!token) {
       erro.value = 'Link inválido.'
       return
     }
+    // ... resto continua igual ...
 
     const docSnap = await getDoc(doc(db, 'entregas_cliente', token))
     if (!docSnap.exists()) {
@@ -425,6 +577,14 @@ onMounted(async () => {
     }
 
     dados.value = d
+
+    // Inicializa respostas e observações do cliente
+    if (d.checklistEntrada && Array.isArray(d.checklistEntrada)) {
+      d.checklistEntrada.forEach((_, idx) => {
+        observacoesCliente.value[idx] = observacoesCliente.value[idx] || ''
+        respostasCliente.value[idx] = respostasCliente.value[idx] || ''
+      })
+    }
 
     if (d.cliente) nomeRecebedor.value = d.cliente
     if (d.cpfCnpj) cpfCnpjRecebedor.value = d.cpfCnpj
@@ -532,12 +692,14 @@ const confirmarRecebimento = async () => {
     const observacaoAcumulada = [obsAntiga, novaObsTexto].filter(Boolean).join('\n')
 
     // 1. Atualiza documento de controle público da entrega
+    // 1. Atualiza documento de controle público da entrega
     await updateDoc(doc(db, 'entregas_cliente', token), {
       status: 'assinado',
       nomeRecebedor: nomeRecebedor.value,
       cpfCnpjRecebedor: docLimpo,
       assinaturaCliente: signatureContainerElementCleanup(assinaturaImagem.value),
       observacoesCliente: { ...observacoesCliente.value },
+      respostasCliente: { ...respostasCliente.value },
       observacaoGeral: observacaoAcumulada,
       dataAssinatura: Timestamp.now(),
     })
@@ -599,6 +761,7 @@ const confirmarRecebimento = async () => {
         respostasChecklist: (dados.value.checklistEntrada || []).map((item, index) => ({
           texto: item.texto,
           resposta: item.resposta,
+          respostaCliente: respostasCliente.value[index] || '-',
           observacao: observacoesCliente.value[index] || item.observacao || '-',
         })),
         assinaturas: {
@@ -649,6 +812,13 @@ function signatureContainerElementCleanup(dataUrl) {
   if (!dataUrl) return null
   return dataUrl.trim()
 }
+
+onUnmounted(() => {
+  const auth = getAuth()
+  if (auth.currentUser && auth.currentUser.isAnonymous) {
+    auth.signOut().catch(() => {})
+  }
+})
 </script>
 
 <style scoped>

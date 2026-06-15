@@ -62,6 +62,19 @@
       <!-- Botões de Ações Administrativas -->
       <template v-slot:body-cell-acoes="props">
         <q-td :props="props">
+          <!-- Copiar Link do Cliente (só quando aguardando entrega) -->
+          <q-btn
+            v-if="props.row.status === 'aguardando_entrega_cliente'"
+            size="sm"
+            flat
+            round
+            icon="content_copy"
+            color="orange-8"
+            @click="copiarLinkCliente(props.row)"
+          >
+            <q-tooltip class="bg-grey-9 text-white">Copiar Link do Cliente</q-tooltip>
+          </q-btn>
+
           <q-btn
             v-if="props.row.status === 'em_estoque'"
             size="sm"
@@ -73,6 +86,7 @@
           >
             <q-tooltip class="bg-grey-9 text-orange-8">Editar Checklist</q-tooltip>
           </q-btn>
+
           <q-btn
             size="sm"
             flat
@@ -91,7 +105,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { db } from 'src/boot/firebase'
 import { useQuasar } from 'quasar'
@@ -105,6 +119,7 @@ const maquinas = ref([])
 const carregando = ref(false)
 const unidadeUsuario = ref('')
 const perfisUsuario = ref([])
+const entregasLink = ref({})
 
 // Configuração das Colunas da Tabela
 const colunas = [
@@ -123,6 +138,48 @@ const colunasVisiveis = computed(() => {
   // Vendedores ou técnicos comuns também visualizam o botão de histórico adicionado
   return colunas
 })
+
+const carregarLinksEntrega = async () => {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'entregas_cliente'), where('status', '==', 'pendente')),
+    )
+    const map = {}
+    snap.forEach((docSnap) => {
+      const d = docSnap.data()
+      if (d.serie && d.token) {
+        map[d.serie] = {
+          token: d.token,
+          link: `${window.location.origin}/#/verificacao/${d.token}`,
+          cliente: d.cliente || '',
+        }
+      }
+    })
+    entregasLink.value = map
+  } catch (e) {
+    console.error('Erro ao carregar links:', e)
+  }
+}
+const copiarLinkCliente = (maquina) => {
+  const entrega = entregasLink.value[maquina.serie]
+  if (entrega && entrega.link) {
+    navigator.clipboard.writeText(entrega.link)
+    $q.notify({ type: 'positive', message: 'Link copiado para a área de transferência!' })
+    return
+  }
+
+  // Fallback: se não carregou o link, tenta recriar a URL baseada no histórico
+  const ultimoHistorico = maquina.historico?.length
+    ? [...maquina.historico].reverse().find((h) => h.tipo === 'venda' && h.linkCliente)
+    : null
+
+  if (ultimoHistorico?.linkCliente) {
+    navigator.clipboard.writeText(ultimoHistorico.linkCliente)
+    $q.notify({ type: 'positive', message: 'Link copiado!' })
+  } else {
+    $q.notify({ type: 'warning', message: 'Link não encontrado para esta máquina.' })
+  }
+}
 
 const editarChecklist = (maquina) => {
   router.push({
@@ -205,6 +262,7 @@ onMounted(async () => {
     }
   }
 
+  await carregarLinksEntrega()
   await carregarMaquinas()
 })
 </script>

@@ -108,6 +108,8 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
     tituloPdf = 'VENDA AO CLIENTE'
   } else if (tipoPdf === 'entrega_cliente') {
     tituloPdf = 'TERMO DE ENTREGA TÉCNICA AO CLIENTE'
+  } else if (tipoPdf === 'edicao_checklist') {
+    tituloPdf = 'EDIÇÃO DE CHECKLIST'
   }
 
   const assinaVend = modoPosVenda ? assinaturas?.responsavelNome : assinaturas?.vendedorNome
@@ -198,15 +200,18 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
     ],
   })
 
-  const colunasAssinaturas = [
-    blocoAssinatura(imgPrim, assinaVend, labelBlocoA, assinaturas?.responsavelCpf),
-    blocoAssinatura(
-      imgSeg,
-      assinaCli,
-      labelBlocoB,
-      assinaturas?.motoristaCpf || assinaturas?.clienteCpf,
-    ),
-  ]
+  const colunasAssinaturas =
+    tipoPdf === 'edicao_checklist'
+      ? [blocoAssinatura(imgPrim, assinaVend, labelBlocoA, assinaturas?.responsavelCpf)]
+      : [
+          blocoAssinatura(imgPrim, assinaVend, labelBlocoA, assinaturas?.responsavelCpf),
+          blocoAssinatura(
+            imgSeg,
+            assinaCli,
+            labelBlocoB,
+            assinaturas?.motoristaCpf || assinaturas?.clienteCpf,
+          ),
+        ]
 
   const docDefinition = {
     pageSize: 'A4',

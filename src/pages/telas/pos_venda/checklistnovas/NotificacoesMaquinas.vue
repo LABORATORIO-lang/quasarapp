@@ -137,7 +137,13 @@ const marcarComoLida = async (notif) => {
   }
 }
 
-const irParaRecebimento = (notif) => {
+const irParaRecebimento = async (notif) => {
+  try {
+    await updateDoc(doc(db, 'notificacoes', notif.id), { lida: true })
+    notificacoes.value = notificacoes.value.filter((n) => n.id !== notif.id)
+  } catch (e) {
+    console.error('Erro ao marcar notificação como lida:', e)
+  }
   router.push({
     path: '/inicio/pos-venda/maquinas/receber-transferencia',
     query: { serie: notif.serie, de: notif.de },

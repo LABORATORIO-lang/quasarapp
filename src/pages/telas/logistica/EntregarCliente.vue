@@ -140,6 +140,7 @@ const iniciarEntrega = async (ent) => {
         modelo: ent.modelo,
         cliente: ent.cliente,
         notificacaoId: ent.id,
+        de: ent.de,
       },
     })
   } catch (e) {

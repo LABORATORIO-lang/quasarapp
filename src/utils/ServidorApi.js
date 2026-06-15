@@ -1,7 +1,7 @@
 // Serviço para comunicar com a API do servidor local
 // Substitui/armazena dados além do Firebase
 
-const API_BASE_URL = 'https://eye-sharon-interact-detroit.trycloudflare.com/api'
+export const API_BASE_URL = 'https://gonna-sessions-farms-org.trycloudflare.com'
 
 // ==========================================
 // CHECKLIST COMERCIAL (por cidade/vendedor)
@@ -15,7 +15,7 @@ const API_BASE_URL = 'https://eye-sharon-interact-detroit.trycloudflare.com/api'
  */
 export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, cliente, nomeMaquina) {
   try {
-    const response = await fetch(`${API_BASE_URL}/comercial/checklist`, {
+    const response = await fetch(`${API_BASE_URL}/api/comercial/checklist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -45,7 +45,7 @@ export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, clie
  */
 export async function listarChecklistsComerciais(sigla) {
   try {
-    const response = await fetch(`${API_BASE_URL}/comercial/${sigla}`)
+    const response = await fetch(`${API_BASE_URL}/api/comercial/${sigla}`)
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return await response.json()
   } catch (error) {
@@ -62,7 +62,7 @@ export async function listarChecklistsComerciais(sigla) {
 export async function listarChecklistsVendedor(sigla, vendedor) {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/comercial/${sigla}/${encodeURIComponent(vendedor)}`,
+      `${API_BASE_URL}/api/comercial/${sigla}/${encodeURIComponent(vendedor)}`,
     )
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
     return await response.json()
@@ -77,7 +77,7 @@ export async function listarChecklistsVendedor(sigla, vendedor) {
  */
 export async function salvarChecklistNoServidor(categoria, checklistData) {
   try {
-    const response = await fetch(`${API_BASE_URL}/checklists/${categoria}`, {
+    const response = await fetch(`${API_BASE_URL}/api/checklists/${categoria}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ export async function salvarChecklistNoServidor(categoria, checklistData) {
  */
 export async function listarChecklistsDoServidor(categoria) {
   try {
-    const response = await fetch(`${API_BASE_URL}/checklists/${categoria}`)
+    const response = await fetch(`${API_BASE_URL}/api/checklists/${categoria}`)
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -122,7 +122,7 @@ export async function uploadPdfParaServidor(pdfBase64, filename, tipo = 'checkli
     // Remove o prefixo data:application/pdf;base64, se existir
     const base64Data = pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64
 
-    const response = await fetch(`${API_BASE_URL}/upload/base64/${tipo}`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/base64/${tipo}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -143,12 +143,13 @@ export async function uploadPdfParaServidor(pdfBase64, filename, tipo = 'checkli
     throw error
   }
 }
-export async function salvarTransferenciaPosVenda(cidade, serie, pdfBase64) {
+
+export async function salvarTransferenciaPosVenda(cidade, pdfNome, pdfBase64) {
   try {
-    const response = await fetch(`${API_BASE_URL}/pos-venda/transferencia`, {
+    const response = await fetch(`${API_BASE_URL}/api/pos-venda/transferencia`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cidade, serie, pdfBase64 }),
+      body: JSON.stringify({ cidade, pdfNome, pdfBase64 }),
     })
 
     if (!response.ok) {
@@ -163,6 +164,21 @@ export async function salvarTransferenciaPosVenda(cidade, serie, pdfBase64) {
   }
 }
 
+export async function salvarEdicaoPosVenda(cidade, pdfNome, pdfBase64) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/pos-venda/edicao`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cidade, pdfNome, pdfBase64 }),
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return await response.json()
+  } catch (error) {
+    console.error('Erro ao salvar edicao no servidor:', error)
+    throw error
+  }
+}
+
 /**
  * Upload de foto para o servidor
  */
@@ -171,7 +187,7 @@ export async function uploadFotoParaServidor(fotoBase64, filename, tipo = 'fotos
     // Remove o prefixo data:image/...;base64, se existir
     const base64Data = fotoBase64.includes(',') ? fotoBase64.split(',')[1] : fotoBase64
 
-    const response = await fetch(`${API_BASE_URL}/upload/base64/${tipo}`, {
+    const response = await fetch(`${API_BASE_URL}/api/upload/base64/${tipo}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -198,7 +214,7 @@ export async function uploadFotoParaServidor(fotoBase64, filename, tipo = 'fotos
  */
 export async function fazerBackupNoServidor(dadosCompletos) {
   try {
-    const response = await fetch(`${API_BASE_URL}/backup`, {
+    const response = await fetch(`${API_BASE_URL}/api/backup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -222,7 +238,7 @@ export async function fazerBackupNoServidor(dadosCompletos) {
  */
 export async function listarBackupsDoServidor() {
   try {
-    const response = await fetch(`${API_BASE_URL}/backup/lista`)
+    const response = await fetch(`${API_BASE_URL}/api/backup/lista`)
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
@@ -240,7 +256,7 @@ export async function listarBackupsDoServidor() {
  */
 export async function verificarStatusServidor() {
   try {
-    const response = await fetch(`${API_BASE_URL}/health`, {
+    const response = await fetch(`${API_BASE_URL}/api/health`, {
       method: 'GET',
       // Timeout de 5 segundos
       signal: AbortSignal.timeout(5000),
@@ -257,14 +273,14 @@ export async function verificarStatusServidor() {
   }
 }
 
-export async function salvarChecklistPosVenda(cidade, serie, pdfBase64) {
+export async function salvarChecklistPosVenda(cidade, pdfNome, pdfBase64) {
   try {
-    const response = await fetch(`${API_BASE_URL}/pos-venda/checklist`, {
+    const response = await fetch(`${API_BASE_URL}/api/pos-venda/checklist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         cidade,
-        serie,
+        pdfNome,
         pdfBase64,
       }),
     })

@@ -93,6 +93,23 @@ const routes = [
           import('src/pages/telas/pos_venda/checklistnovas/NotificacoesMaquinas.vue'),
       },
 
+      // --- Calculadoras de Plantio ---
+      {
+        path: 'pos-venda/calculo-plantio',
+        component: () =>
+          import('pages/telas/pos_venda/calculadoraplantio/CalculadoraPlantioMenu.vue'),
+      },
+      {
+        path: 'pos-venda/calculo-plantio/emenda',
+        component: () =>
+          import('pages/telas/pos_venda/calculadoraplantio/CalibrarEmendaPlantio.vue'),
+      },
+      {
+        path: 'pos-venda/calculo-plantio/desligamento',
+        component: () =>
+          import('pages/telas/pos_venda/calculadoraplantio/DesligamentoLinhaALinha.vue'),
+      },
+
       // Histórico
       { path: 'historico/:setor', component: () => import('pages/HistoricoRegistros.vue') },
 

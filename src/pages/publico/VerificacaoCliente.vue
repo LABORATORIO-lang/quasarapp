@@ -51,7 +51,12 @@
         </q-card-section>
       </q-card>
 
-      <div class="text-subtitle2 text-grey-5 q-mb-sm">ITENS DE VERIFICAÇÃO</div>
+      <div class="row items-center justify-between q-mb-sm">
+        <div class="text-subtitle2 text-grey-5">ITENS DE VERIFICAÇÃO</div>
+        <q-badge color="orange-8" class="text-black text-weight-bold">
+          {{ itensVerificados }} / {{ totalItens }} verificados
+        </q-badge>
+      </div>
       <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
         <q-list separator>
           <template v-for="(item, idx) in dados.checklistEntrada" :key="idx">
@@ -59,26 +64,30 @@
               <q-item-section>
                 <q-item-label class="text-white">{{ item.texto }}</q-item-label>
                 <q-item-label caption>
-                  <q-badge
-                    :color="
-                      item.resposta === 'SIM' || item.resposta === 'BOM'
-                        ? 'green-8'
-                        : item.resposta === 'NÃO' || item.resposta === 'RUIM'
-                          ? 'red-8'
-                          : 'grey-8'
-                    "
-                    class="q-mr-xs"
-                  >
-                    {{ item.resposta || 'N/A' }}
+                  <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
+                    Entrada: {{ item.resposta || 'N/A' }}
                   </q-badge>
-                  <span v-if="item.observacao" class="text-grey-5">{{ item.observacao }}</span>
+                  <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
+                    {{ item.observacao }}
+                  </span>
                 </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-checkbox
+                  v-model="respostasCliente[idx]"
+                  :true-value="respostaPositiva(item.resposta)"
+                  :false-value="''"
+                  color="orange-8"
+                  dark
+                  checked-icon="check_circle"
+                  unchecked-icon="radio_button_unchecked"
+                />
               </q-item-section>
             </q-item>
             <div class="q-px-md q-pb-sm">
               <q-input
                 v-model="observacoesCliente[idx]"
-                label="Observação do cliente"
+                label="Obs do item"
                 dark
                 dense
                 filled

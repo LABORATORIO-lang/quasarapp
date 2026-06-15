@@ -2,7 +2,7 @@
   <q-page class="q-pa-lg text-white bg-grey-10">
     <div class="row items-center justify-between q-mb-xl q-col-gutter-sm">
       <div class="row items-center q-gutter-sm">
-        <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
+        <q-btn flat round icon="arrow_back" color="orange-8" @click="voltar" />
         <div>
           <div class="text-h5 text-weight-bold">Histórico por Nº de Série</div>
           <div class="text-caption text-grey-5">Pesquise a vida completa de uma máquina</div>
@@ -48,53 +48,62 @@
           :icon="iconeEvento(evento.tipo)"
           :color="corEvento(evento.tipo)"
         >
-          <div class="text-grey-4 q-mb-sm">{{ evento.nomeMaquina }}</div>
-
-          <div
-            v-if="evento.para || evento.unidadeDestino || evento.cliente"
-            class="text-caption text-orange q-mb-sm"
-          >
-            <q-icon name="local_shipping" size="xs" class="q-mr-xs" />
-            {{ evento.de || evento.unidade || evento.unidadeAtual || 'Estoque' }} ➝
-            {{ evento.para || evento.unidadeDestino || evento.cliente }}
-          </div>
-
-          <div class="text-grey-5 text-caption q-mb-xs">
-            Responsável: {{ evento.responsavel || evento.assinaturas?.responsavelNome || 'N/A' }}
-            <span v-if="evento.motorista"> / Motorista: {{ evento.motorista }}</span>
-          </div>
-
-          <div v-if="evento.tipo === 'venda' && evento.linkCliente" class="q-my-sm">
-            <q-btn
-              outline
-              no-caps
-              size="sm"
-              color="orange-8"
-              icon="link"
-              label="Copiar Link de Rastreamento do Cliente"
-              @click="copiarLinkRastreio(evento.linkCliente)"
-              class="q-px-sm"
+          <!-- Layout para eventos normais -->
+          <div v-if="evento.tipo !== 'edicao'">
+            <div class="text-grey-4 q-mb-sm">{{ evento.nomeMaquina }}</div>
+            <div
+              v-if="evento.para || evento.unidadeDestino || evento.cliente"
+              class="text-caption text-orange q-mb-sm"
             >
-              <q-tooltip dark class="bg-grey-9 text-orange-8"
-                >Clique para copiar o link público</q-tooltip
-              >
-            </q-btn>
+              <q-icon name="local_shipping" size="xs" class="q-mr-xs" />
+              {{ evento.de || evento.unidade || evento.unidadeAtual || 'Estoque' }} ➝
+              {{ evento.para || evento.unidadeDestino || evento.cliente }}
+            </div>
+            <div class="text-grey-5 text-caption q-mb-xs">
+              Responsável: {{ evento.responsavel || evento.assinaturas?.responsavelNome || 'N/A' }}
+              <span v-if="evento.motorista"> / Motorista: {{ evento.motorista }}</span>
+            </div>
+          </div>
+
+          <!-- Layout para edições do checklist -->
+          <div v-else>
+            <div class="text-grey-5 text-caption q-mb-xs">
+              Responsável: {{ evento.responsavel || 'N/A' }} —
+              {{ evento.unidadeAtual || evento.unidade || 'Local não registrado' }}
+            </div>
+            <div class="text-caption text-grey-5 q-mb-sm">
+              {{ evento.observacao || 'Sem observação' }}
+            </div>
+            <div v-for="(alt, i) in evento.alteracoes" :key="i" class="text-caption text-orange">
+              {{ alt.item || alt.campo }}: {{ alt.de }} → {{ alt.para }}
+            </div>
           </div>
 
           <div class="row q-gutter-sm q-mt-sm">
             <q-btn
+              v-if="evento.pdfNome"
               size="sm"
               color="grey-8"
               icon="picture_as_pdf"
               label="Ver PDF"
-              @click="abrirPdfServidor(evento)"
+              @click="abrirPdfServidor(evento.pdfNome)"
             />
             <q-btn
+              v-if="evento.tipo !== 'edicao'"
               size="sm"
               color="orange-8"
               text-color="black"
               icon="checklist"
               label="Ver Checklist"
+              @click="abrirChecklist(evento)"
+            />
+            <q-btn
+              v-if="evento.tipo === 'edicao'"
+              size="sm"
+              color="purple-6"
+              text-color="white"
+              icon="checklist"
+              label="Ver Checklist Atual"
               @click="abrirChecklist(evento)"
             />
           </div>
@@ -154,20 +163,58 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
+import localforage from 'localforage'
+import { getAuth } from 'firebase/auth'
 
 const $q = useQuasar()
 const route = useRoute()
+const router = useRouter()
+const perfisUsuario = ref([])
 const dialogChecklistAberto = ref(false)
 const checklistItens = ref([])
 const serieBusca = ref('')
 const resultado = ref(null)
 const pesquisou = ref(false)
 
-const API_BASE_URL = 'https://eye-sharon-interact-detroit.trycloudflare.com'
+import { API_BASE_URL } from 'src/utils/ServidorApi.js'
+const voltar = async () => {
+  try {
+    // Tenta resgatar os perfis do usuário na sessão local ou Firebase
+    let perfis = perfisUsuario.value
+    if (!perfis || perfis.length === 0) {
+      const sessao = await localforage.getItem('user_session')
+      perfis = sessao?.perfis || []
+    }
+    if (!perfis || perfis.length === 0) {
+      const auth = getAuth()
+      const user = auth.currentUser
+      if (user) {
+        const snap = await getDoc(doc(db, 'usuarios', user.uid))
+        if (snap.exists()) {
+          perfis = snap.data().perfis || []
+          perfisUsuario.value = perfis
+        }
+      }
+    }
+
+    // Perfis que visualizam o Controle de Máquinas (ajuste conforme os seus perfis reais)
+    const perfisComAcesso = ['master', 'adm_pos_venda', 'gerente_comercial']
+    const temAcesso = Array.isArray(perfis) && perfis.some((p) => perfisComAcesso.includes(p))
+
+    if (temAcesso) {
+      router.push('/inicio/pos-venda/maquinas')
+    } else {
+      router.push('/inicio')
+    }
+  } catch (e) {
+    console.error('Erro ao verificar perfil para voltar:', e)
+    router.push('/inicio')
+  }
+}
 
 const pesquisarSerie = async (serieParam = null) => {
   const serie =
@@ -181,24 +228,44 @@ const pesquisarSerie = async (serieParam = null) => {
     const docRef = doc(db, 'maquinas', serie)
     const docSnap = await getDoc(docRef)
 
-    let historico = null
-    if (docSnap.exists()) {
-      const dados = docSnap.data()
-      historico = dados.historico || []
-    }
-    if (!historico || historico.length === 0) {
+    if (!docSnap.exists()) {
       resultado.value = null
       return
     }
 
-    ordenarPorData(historico)
     const dados = docSnap.data()
+    const historico = dados.historico || []
+    const edicoes = dados.edicoesChecklist || []
+
+    // Converte edições para formato da timeline
+    const edicoesFormatadas = edicoes.map((ed) => ({
+      tipo: 'edicao',
+      dataConclusao: ed.data,
+      responsavel: ed.responsavel,
+      observacao: ed.observacao,
+      nomeMaquina: dados.modelo || 'Máquina',
+      alteracoes: ed.alteracoes,
+      pdfNome: ed.pdfNome,
+    }))
+
+    const timeline = [...historico, ...edicoesFormatadas]
+
+    // Remove duplicados entre histórico e edições (mesmo pdfNome = mesma edição)
+    const vistos = new Set()
+    const timelineUnica = timeline.filter((item) => {
+      const chave = item.pdfNome || item.idUnicoAcao || JSON.stringify(item.alteracoes)
+      if (vistos.has(chave)) return false
+      vistos.add(chave)
+      return true
+    })
+
+    ordenarPorData(timelineUnica)
 
     resultado.value = {
       serie: serie,
       modelo: dados.modelo || 'Máquina',
-      totalEventos: historico.length,
-      historico: historico,
+      totalEventos: timelineUnica.length,
+      historico: timelineUnica,
       checklistEntrada: dados.checklistEntrada || [],
     }
   } catch (e) {
@@ -230,12 +297,29 @@ const corChecklist = (resposta) => {
 }
 
 const ordenarPorData = (lista) => {
-  lista.sort((a, b) => new Date(a.dataConclusao || a.data) - new Date(b.dataConclusao || b.data))
-}
+  lista.sort((a, b) => {
+    const dataA = (a.dataConclusao || a.data || '').slice(0, 10)
+    const dataB = (b.dataConclusao || b.data || '').slice(0, 10)
 
+    if (dataA !== dataB) {
+      const [aA, mA, dA] = dataA.split('-')
+      const [aB, mB, dB] = dataB.split('-')
+      return new Date(aA, mA - 1, dA) - new Date(aB, mB - 1, dB)
+    }
+
+    return (a.numero || 0) - (b.numero || 0)
+  })
+}
 const formatarData = (dataStr) => {
   if (!dataStr) return ''
-  const d = new Date(dataStr)
+
+  // Se for ISO completo (com T ou Z), extrai só a data
+  const dataLimpa = dataStr.includes('T') ? dataStr.split('T')[0] : dataStr
+
+  // Cria data LOCAL (sem interpretar como UTC)
+  const [ano, mes, dia] = dataLimpa.split('-')
+  const d = new Date(Number(ano), Number(mes) - 1, Number(dia))
+
   return d.toLocaleDateString('pt-BR')
 }
 
@@ -246,7 +330,9 @@ const tituloEvento = (tipo) => {
     recebimento_transferencia: 'Recebimento por Transferência',
     transferencia: 'Transferência de Máquina',
     venda: 'Venda / Saída de NF',
-    entrega_cliente: 'Entrega Efetuada ao Cliente', // Label corrigido!
+    entrega_cliente: 'Entrega Efetuada ao Cliente',
+    // NOVO:
+    edicao: 'Edição de Checklist',
   }
   return map[tipo] || 'Evento Operacional'
 }
@@ -257,7 +343,9 @@ const iconeEvento = (tipo) => {
     transferencia: 'local_shipping',
     venda: 'handshake',
     recebimento_transferencia: 'move_to_inbox',
-    entrega_cliente: 'task_alt', // Ícone de sucesso para entrega concluída
+    entrega_cliente: 'task_alt',
+    // NOVO:
+    edicao: 'edit_note',
   }
   return map[tipo] || 'help'
 }
@@ -268,29 +356,27 @@ const corEvento = (tipo) => {
     transferencia: 'warning',
     venda: 'orange',
     recebimento_transferencia: 'positive',
-    entrega_cliente: 'green-6', // Cor diferenciada para o fechamento
+    entrega_cliente: 'green-6',
+    // NOVO:
+    edicao: 'purple-6',
   }
   return map[tipo] || 'grey'
 }
 
-// Método utilitário para copiar o link da área de transferência
-const copiarLinkRastreio = (link) => {
-  if (!link) return
-  navigator.clipboard.writeText(link)
-  $q.notify({
-    type: 'positive',
-    message: 'Link de rastreamento copiado para a área de transferência!',
-    icon: 'assignment_turn_in',
-  })
-}
-
-const abrirPdfServidor = (evento) => {
-  const nome = evento.pdfNome || resultado.value.serie
-  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(nome)}`
+const abrirPdfServidor = (pdfNome) => {
+  if (!pdfNome) return
+  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(pdfNome)}`
   window.open(url, '_blank')
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const sessao = await localforage.getItem('user_session')
+    perfisUsuario.value = sessao?.perfis || []
+  } catch (e) {
+    console.warn('Erro ao carregar perfis da sessão:', e)
+  }
+
   if (route.query.serie) {
     pesquisarSerie(route.query.serie)
   }
