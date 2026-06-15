@@ -13,7 +13,14 @@ export const API_BASE_URL = 'https://gonna-sessions-farms-org.trycloudflare.com'
  * @param {string} vendedor - Nome do vendedor
  * @param {object} checklistData - Dados do checklist
  */
-export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, cliente, nomeMaquina) {
+export async function salvarChecklistComercial(
+  cidade,
+  vendedor,
+  pdfBase64,
+  cliente,
+  nomeMaquina,
+  serie,
+) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/comercial/checklist`, {
       method: 'POST',
@@ -24,6 +31,7 @@ export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, clie
         pdfBase64,
         cliente,
         nomeMaquina,
+        serie,
       }),
     })
 

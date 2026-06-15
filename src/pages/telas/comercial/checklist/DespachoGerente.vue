@@ -55,29 +55,6 @@
           </div>
         </q-card-section>
 
-        <!-- Preview do checklist -->
-        <q-card-section class="q-pt-xs q-pb-sm">
-          <div class="text-caption text-grey-5 q-mb-xs">Itens avaliados:</div>
-          <div class="row q-gutter-xs">
-            <q-chip
-              v-for="(item, idx) in (av.checklistAvaliacao || []).slice(0, 5)"
-              :key="idx"
-              dense
-              :color="corChecklist(item.resposta)"
-              text-color="white"
-              size="sm"
-            >
-              {{ item.resposta || 'N/A' }}
-            </q-chip>
-            <span
-              v-if="(av.checklistAvaliacao || []).length > 5"
-              class="text-caption text-grey-5 q-ml-sm"
-            >
-              +{{ av.checklistAvaliacao.length - 5 }} itens
-            </span>
-          </div>
-        </q-card-section>
-
         <q-separator color="grey-8" />
 
         <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
@@ -178,13 +155,14 @@ import {
 } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
+import { useUnidades } from 'src/composables/useUnidades'
 
 const $q = useQuasar()
 
 const carregando = ref(true)
 const avaliacoes = ref([])
-const unidades = ref(['Unidade A', 'Unidade B', 'Unidade C', 'Matriz']) // ← AJUSTE PARA SUAS UNIDADES REAIS
 const motoristas = ref([])
+const { unidades, carregarUnidades } = useUnidades()
 const dialogDespachoAberto = ref(false)
 const maquinaSelecionada = ref(null)
 const salvando = ref(false)
@@ -194,18 +172,6 @@ const despacho = ref({
   motorista: null,
   observacao: '',
 })
-
-const corChecklist = (resposta) => {
-  const map = {
-    BOM: 'positive',
-    ATENCAO: 'warning',
-    RUIM: 'negative',
-    SIM: 'positive',
-    NAO: 'negative',
-    OK: 'positive',
-  }
-  return map[resposta] || 'grey'
-}
 
 const formatarData = (iso) => {
   if (!iso) return ''
@@ -275,9 +241,7 @@ const confirmarDespacho = async () => {
       horimetro: av.horimetro || '',
 
       // Dados originais do vendedor
-      fotosGerais: av.fotosGerais || {},
       checklistAvaliacao: av.checklistAvaliacao || [],
-      assinaturasVenda: av.assinaturasVenda || {},
       cliente: av.cliente || '',
 
       // Dados do despacho
@@ -325,6 +289,7 @@ const confirmarDespacho = async () => {
 }
 
 onMounted(async () => {
+  await carregarUnidades()
   await buscarMotoristas()
   await buscarAvaliacoes()
 })

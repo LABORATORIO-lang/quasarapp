@@ -4,26 +4,79 @@
       <div class="row items-center q-gutter-sm">
         <q-btn flat round icon="arrow_back" color="orange-8" @click="voltar" />
         <div>
-          <div class="text-h5 text-weight-bold">Receber Máquina Usada</div>
-          <div class="text-caption text-grey-5">Confira os itens e confirme o recebimento</div>
+          <div class="text-h5 text-weight-bold">
+            {{ modoForm ? 'Receber Máquina Usada' : 'Receber Usada' }}
+          </div>
+          <div class="text-caption text-grey-5">
+            {{
+              modoForm
+                ? 'Confira os itens e confirme o recebimento'
+                : 'Máquinas chegando nesta unidade'
+            }}
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- LOADING -->
     <div v-if="carregando" class="flex flex-center q-py-xl">
       <q-spinner color="orange-8" size="48px" />
     </div>
 
-    <div v-else-if="!despacho" class="flex flex-center column q-py-xl text-center">
-      <q-icon name="error_outline" size="72px" color="grey-7" class="q-mb-md" />
-      <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma máquina para receber</div>
-      <div class="text-body2 text-grey-6">
-        Não há máquinas usadas em trânsito para esta unidade.
+    <!-- LISTA -->
+    <div v-else-if="!modoForm">
+      <div v-if="despachos.length === 0" class="flex flex-center column q-py-xl text-center">
+        <q-icon name="inventory_2" size="72px" color="green-7" class="q-mb-md" />
+        <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma máquina para receber</div>
+        <div class="text-body2 text-grey-6">
+          Não há máquinas usadas em trânsito para esta unidade.
+        </div>
+      </div>
+
+      <div v-else class="q-gutter-md">
+        <q-card
+          v-for="d in despachos"
+          :key="d.id"
+          class="bg-grey-9 text-white"
+          style="border-radius: 12px; border: 1px solid #424242"
+        >
+          <q-card-section>
+            <div class="row items-start justify-between no-wrap">
+              <div class="col">
+                <div class="text-h6 text-weight-bold text-orange-8">{{ d.modelo }}</div>
+                <div class="text-caption text-grey-5">Série: {{ d.serie }}</div>
+                <div class="text-caption text-grey-5 q-mt-xs">
+                  <q-icon name="person" size="13px" color="grey-5" class="q-mr-xs" />
+                  Vendedor: {{ d.cliente || 'N/A' }}
+                </div>
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  <q-icon name="schedule" size="13px" color="grey-5" class="q-mr-xs" />
+                  Carregado em {{ formatarData(d.dataCarregamento) }}
+                </div>
+              </div>
+              <div class="col-auto q-ml-sm">
+                <q-badge color="green-8" text-color="white" rounded class="q-px-sm q-py-xs">
+                  Chegando
+                </q-badge>
+              </div>
+            </div>
+          </q-card-section>
+          <q-separator color="grey-8" />
+          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
+            <q-btn
+              color="orange-8"
+              text-color="black"
+              icon="download_done"
+              label="Receber"
+              @click="abrirFormulario(d)"
+            />
+          </q-card-actions>
+        </q-card>
       </div>
     </div>
 
+    <!-- FORMULÁRIO DE RECEBIMENTO -->
     <div v-else>
-      <!-- Dados da máquina -->
       <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #ff9800; border-radius: 8px">
         <q-card-section>
           <div class="text-subtitle1 text-weight-bold text-orange-8 q-mb-sm">Dados da Máquina</div>
@@ -32,15 +85,6 @@
           </div>
           <div class="text-caption text-grey-4">
             Série: <strong class="text-white">{{ despacho.serie }}</strong>
-          </div>
-          <div v-if="despacho.marca" class="text-caption text-grey-4">
-            Marca: <strong class="text-white">{{ despacho.marca }}</strong>
-          </div>
-          <div v-if="despacho.ano" class="text-caption text-grey-4">
-            Ano: <strong class="text-white">{{ despacho.ano }}</strong>
-          </div>
-          <div v-if="despacho.horimetro" class="text-caption text-grey-4">
-            Horímetro: <strong class="text-white">{{ despacho.horimetro }}</strong>
           </div>
           <div class="text-caption text-grey-4 q-mt-xs">
             Origem: <strong class="text-white">{{ despacho.unidadeOrigem }}</strong>
@@ -54,19 +98,23 @@
         </q-card-section>
       </q-card>
 
-      <div class="row items-center justify-between q-mb-sm">
+      <div v-if="checklistExibido.length > 0" class="row items-center justify-between q-mb-sm">
         <div class="text-subtitle2 text-grey-5">ITENS DE VERIFICAÇÃO</div>
         <q-badge color="orange-8" class="text-black text-weight-bold">
           {{ itensVerificados }} / {{ totalItens }} verificados
         </q-badge>
       </div>
 
-      <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
+      <q-card
+        v-if="checklistExibido.length > 0"
+        class="bg-grey-9 q-mb-md"
+        style="border: 1px solid #333; border-radius: 8px"
+      >
         <q-list separator>
           <template v-for="(item, idx) in checklistExibido" :key="idx">
             <q-item>
               <q-item-section>
-                <q-item-label class="text-white">{{ item.texto }}</q-item-label>
+                <q-item-label class="text-white">{{ item.texto || 'Item sem nome' }}</q-item-label>
                 <q-item-label caption>
                   <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
                     Vendedor: {{ item.resposta || 'N/A' }}
@@ -74,10 +122,6 @@
                   <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
                     {{ item.observacao }}
                   </span>
-                </q-item-label>
-                <q-item-label v-if="item.obsMotorista" caption class="text-purple-4">
-                  <q-icon name="local_shipping" size="12px" class="q-mr-xs" />
-                  Motorista: {{ item.obsMotorista }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -143,14 +187,13 @@
       </div>
       <q-card
         class="bg-grey-10"
-        style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
+        style="border-radius: 8px; border: 1px solid #555"
         :style="assinado ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)' : ''"
       >
         <q-card-section class="q-pa-md">
           <div class="flex justify-between items-center q-mb-md">
             <div class="text-subtitle2 text-weight-bold text-white flex items-center">
-              <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" />
-              Recebedor
+              <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" /> Recebedor
             </div>
             <q-badge
               :color="assinado ? 'green-8' : 'grey-8'"
@@ -315,15 +358,29 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { doc, getDoc, updateDoc, Timestamp, arrayUnion, setDoc } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  Timestamp,
+  arrayUnion,
+  setDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
+import localforage from 'localforage'
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 
 const carregando = ref(true)
+const modoForm = ref(false)
 const despacho = ref(null)
+const despachos = ref([])
 const respostasRecebedor = ref({})
 const observacoesRecebedor = ref({})
 const nomeRecebedor = ref('')
@@ -331,8 +388,8 @@ const cpfRecebedor = ref('')
 const observacaoGeral = ref('')
 const assinado = ref(false)
 const salvando = ref(false)
+const minhaUnidade = ref('')
 
-// Canvas
 const canvasRef = ref(null)
 const isDrawing = ref(false)
 let lastX = 0
@@ -374,13 +431,25 @@ const corStatus = (resposta) => {
 
 const checklistExibido = computed(() => {
   if (!despacho.value) return []
-  const itensVendedor = despacho.value.checklistAvaliacao || []
+  const itensVendedor = Array.isArray(despacho.value.checklistAvaliacao)
+    ? despacho.value.checklistAvaliacao
+    : []
   const obsMotorista = despacho.value.observacoesMotorista || {}
   return itensVendedor.map((item, idx) => ({
-    ...item,
+    ...(item || {}),
     obsMotorista: obsMotorista[idx] || null,
   }))
 })
+
+const formatarData = (iso) => {
+  if (!iso) return ''
+  try {
+    const d = iso.toDate ? iso.toDate() : new Date(iso)
+    return d.toLocaleDateString('pt-BR')
+  } catch {
+    return ''
+  }
+}
 
 const validarCPF = (cpf) => {
   if (!cpf) return false
@@ -400,39 +469,65 @@ const validarCPF = (cpf) => {
   return true
 }
 
-const buscarDespacho = async () => {
+// === MODO LISTA ===
+const carregarLista = async () => {
+  console.log('CARREGANDO LISTA para unidade:', minhaUnidade.value)
   carregando.value = true
   try {
-    const q = new URLSearchParams(window.location.search)
-    const id = route.query.id || q.get('id')
-    if (!id) {
-      carregando.value = false
+    const sessao = await localforage.getItem('user_session')
+    minhaUnidade.value = sessao?.unidade || sessao?.cidade || ''
+    if (!minhaUnidade.value) {
+      $q.notify({ type: 'warning', message: 'Unidade não identificada.' })
       return
     }
+
+    const q = query(
+      collection(db, 'despachos_usados'),
+      where('status', '==', 'carregado'),
+      where('unidadeDestino', '==', minhaUnidade.value),
+    )
+    const snap = await getDocs(q)
+    despachos.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    console.log('DESPACHOS ENCONTRADOS:', despachos.value.length)
+  } catch (e) {
+    console.error('Erro ao carregar lista:', e)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar usadas.' })
+  } finally {
+    carregando.value = false
+  }
+}
+
+// === MODO FORM ===
+const carregarDespacho = async (id) => {
+  carregando.value = true
+  try {
     const snap = await getDoc(doc(db, 'despachos_usados', id))
     if (!snap.exists()) {
-      carregando.value = false
+      $q.notify({ type: 'warning', message: 'Despacho não encontrado.' })
+      voltar()
       return
     }
     const d = snap.data()
     if (d.status !== 'carregado') {
-      $q.notify({
-        type: 'warning',
-        message: 'Este despacho ainda não foi carregado pelo motorista.',
-      })
-      carregando.value = false
+      $q.notify({ type: 'warning', message: 'Este despacho ainda não foi carregado.' })
+      voltar()
       return
     }
     despacho.value = { id: snap.id, ...d }
   } catch (e) {
-    console.error('Erro ao buscar despacho:', e)
+    console.error('Erro ao carregar despacho:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar despacho.' })
   } finally {
     carregando.value = false
   }
 }
 
-// Canvas
+const abrirFormulario = (d) => {
+  // Muda para modo form sem mudar de rota (simula query param)
+  modoForm.value = true
+  despacho.value = d
+}
+
 const initCanvas = async () => {
   await nextTick()
   const canvas = canvasRef.value
@@ -518,13 +613,11 @@ const confirmarRecebimento = async () => {
     const d = despacho.value
     const serie = d.serie
 
-    // 1. Atualiza despacho como recebido
     await updateDoc(doc(db, 'despachos_usados', d.id), {
       status: 'recebido',
       dataRecebimento: Timestamp.now(),
       recebidoPor: nomeRecebedor.value,
       cpfRecebedor: cpfRecebedor.value,
-      assinaturaRecebedorImagem: assinaturaImagem.value,
       checklistRecebimento: (checklistExibido.value || []).map((item, idx) => ({
         texto: item.texto,
         respostaVendedor: item.resposta,
@@ -534,7 +627,6 @@ const confirmarRecebimento = async () => {
       observacaoGeral: observacaoGeral.value,
     })
 
-    // 2. Cria/Atualiza documento na coleção maquinas
     const maquinaRef = doc(db, 'maquinas', serie)
     const maquinaSnap = await getDoc(maquinaRef)
     const historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
@@ -554,7 +646,6 @@ const confirmarRecebimento = async () => {
     }
 
     if (!maquinaSnap.exists()) {
-      // Cria máquina nova no estoque
       await setDoc(maquinaRef, {
         serie,
         modelo: d.modelo,
@@ -574,7 +665,6 @@ const confirmarRecebimento = async () => {
         dataEntrada: Timestamp.now(),
       })
     } else {
-      // Atualiza máquina existente
       await updateDoc(maquinaRef, {
         status: 'recebida_usada',
         unidadeAtual: d.unidadeDestino,
@@ -583,7 +673,6 @@ const confirmarRecebimento = async () => {
       })
     }
 
-    // 3. Atualiza avaliacoes_usadas
     await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
       status: 'recebida',
       dataRecebimento: Timestamp.now(),
@@ -601,10 +690,27 @@ const confirmarRecebimento = async () => {
 }
 
 const voltar = () => {
-  router.push('/inicio/pos-venda/maquinas')
+  if (modoForm.value) {
+    modoForm.value = false
+    despacho.value = null
+    respostasRecebedor.value = {}
+    observacoesRecebedor.value = {}
+  } else {
+    router.push('/inicio/pos-venda/maquinas')
+  }
 }
 
-onMounted(buscarDespacho)
+onMounted(async () => {
+  const id = route.query.id
+  console.log('ReceberUsada MONTADO. ID:', id)
+  if (id) {
+    modoForm.value = true
+    await carregarDespacho(id)
+  } else {
+    modoForm.value = false
+    await carregarLista()
+  }
+})
 </script>
 
 <style scoped>

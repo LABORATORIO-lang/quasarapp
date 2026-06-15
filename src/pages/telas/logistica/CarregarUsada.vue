@@ -164,13 +164,42 @@
             </q-list>
           </q-card>
 
-          <div class="text-subtitle2 text-grey-5 q-mb-sm">ASSINATURA DO MOTORISTA</div>
+          <!-- Dados do Responsável pela entrega -->
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">DADOS DO RESPONSÁVEL PELA ENTREGA</div>
+          <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
+            <q-card-section class="q-gutter-y-sm">
+              <q-input
+                v-model="nomeResponsavel"
+                label="Nome do Responsável"
+                dark
+                filled
+                dense
+                color="purple-6"
+                bg-color="grey-10"
+              />
+              <q-input
+                v-model="cpfResponsavel"
+                label="CPF do Responsável"
+                dark
+                filled
+                dense
+                color="purple-6"
+                bg-color="grey-10"
+                mask="###.###.###-##"
+                unmasked-value
+                :rules="[(val) => !val || validarCPF(val) || 'CPF inválido']"
+                lazy-rules
+              />
+            </q-card-section>
+          </q-card>
+
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">ASSINATURA DO RESPONSÁVEL</div>
           <q-card class="bg-grey-10" style="border-radius: 8px; border: 1px solid #555">
             <q-card-section class="q-pa-md">
               <div class="flex justify-between items-center q-mb-md">
                 <div class="text-subtitle2 text-weight-bold text-white flex items-center">
                   <q-icon name="person" class="q-mr-sm text-purple-6" size="sm" />
-                  Motorista
+                  Responsável
                 </div>
                 <q-badge
                   :color="assinado ? 'green-8' : 'grey-8'"
@@ -234,7 +263,7 @@
               <q-avatar icon="draw" color="purple-6" text-color="white" size="md" class="q-mr-sm" />
               <div>
                 <div class="text-h6 text-white" style="line-height: 1.2">
-                  Assinatura do Motorista
+                  Assinatura do Responsável
                 </div>
                 <div class="text-caption text-purple-4">Assine no espaço em branco abaixo</div>
               </div>
@@ -347,11 +376,15 @@ const isDrawing = ref(false)
 let lastX = 0
 let lastY = 0
 const assinaturaImagem = ref(null)
+const nomeResponsavel = ref('')
+const cpfResponsavel = ref('')
 
 const podeConfirmar = computed(() => {
   const lista = maquinaSelecionada.value?.checklistAvaliacao || []
   const todosConferidos = lista.every((_, idx) => itensConferidos.value[idx] === true)
-  return assinado.value && todosConferidos
+  const docOk = validarCPF(cpfResponsavel.value)
+  const nomeOk = nomeResponsavel.value.trim().length > 2
+  return assinado.value && todosConferidos && nomeOk && docOk
 })
 
 const corStatus = (resposta) => {
@@ -401,6 +434,8 @@ const abrirCarga = (d) => {
   observacoesMotorista.value = {}
   assinado.value = false
   assinaturaImagem.value = null
+  nomeResponsavel.value = ''
+  cpfResponsavel.value = ''
   dialogCargaAberto.value = true
 }
 
@@ -489,7 +524,8 @@ const confirmarCarregamento = async () => {
     await updateDoc(docRef, {
       status: 'carregado',
       dataCarregamento: Timestamp.now(),
-      assinaturaMotoristaImagem: assinaturaImagem.value,
+      nomeResponsavel: nomeResponsavel.value,
+      cpfResponsavel: cpfResponsavel.value,
       observacoesMotorista: { ...observacoesMotorista.value },
       itensConferidos: { ...itensConferidos.value },
     })
@@ -504,6 +540,34 @@ const confirmarCarregamento = async () => {
   } finally {
     salvando.value = false
   }
+}
+
+const validarCPF = (cpf) => {
+  if (!cpf) return false
+  const str = cpf.replace(/\D/g, '')
+  if (str.length !== 11 || /^(\d)\1{10}$/.test(str)) return false
+
+  let soma = 0
+  let resto
+
+  for (let i = 1; i <= 9; i++) {
+    soma += parseInt(str.substring(i - 1, i), 10) * (11 - i)
+  }
+
+  resto = (soma * 10) % 11
+  if (resto === 10 || resto === 11) resto = 0
+  if (resto !== parseInt(str.substring(9, 10), 10)) return false
+
+  soma = 0
+  for (let i = 1; i <= 10; i++) {
+    soma += parseInt(str.substring(i - 1, i), 10) * (12 - i)
+  }
+
+  resto = (soma * 10) % 11
+  if (resto === 10 || resto === 11) resto = 0
+  if (resto !== parseInt(str.substring(10, 11), 10)) return false
+
+  return true
 }
 
 onMounted(buscarDespachos)

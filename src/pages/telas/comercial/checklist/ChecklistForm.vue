@@ -962,6 +962,7 @@ const salvarChecklistNoTelemovel = async () => {
           base64Limpo,
           formulario.value.cliente,
           nomeMaquina.value,
+          formulario.value.serie, // ← adiciona a série aqui
         )
         console.log('✅ Checklist comercial sincronizado com servidor')
       }
@@ -976,6 +977,13 @@ const salvarChecklistNoTelemovel = async () => {
 
       const serieTrim = (formulario.value.serie || '').trim().toUpperCase()
       if (serieTrim) {
+        // Limpa fotos dos itens antes de salvar no Firestore
+        const itensLimpos = JSON.parse(JSON.stringify(itens.value)).map((item) => {
+          const resto = { ...item }
+          delete resto.fotos
+          return resto
+        })
+
         await setDoc(doc(db, 'avaliacoes_usadas', serieTrim), {
           serie: serieTrim,
           modelo: formulario.value.modelo || '',
@@ -986,9 +994,7 @@ const salvarChecklistNoTelemovel = async () => {
           cidade: formulario.value.cidade || cidadeCadastro.value || '',
           vendedor: nomeUsuarioCadastro.value || 'Desconhecido',
           dataAvaliacao: new Date().toISOString(),
-          checklistAvaliacao: JSON.parse(JSON.stringify(itens.value)),
-          fotosGerais: JSON.parse(JSON.stringify(fotosGerais.value)),
-          assinaturasVenda: JSON.parse(JSON.stringify(assinaturas.value)),
+          checklistAvaliacao: itensLimpos,
           status: 'avaliada',
           pdfNome: `${serieTrim}-avaliacao-comercial`,
         })
