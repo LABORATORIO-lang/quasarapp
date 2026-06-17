@@ -81,12 +81,12 @@
 
           <div class="row q-gutter-sm q-mt-sm">
             <q-btn
-              v-if="evento.pdfNome"
+              v-if="evento.pdfNome || evento.tipo === 'avaliacao_usada'"
               size="sm"
               color="grey-8"
               icon="picture_as_pdf"
               label="Ver PDF"
-              @click="abrirPdfServidor(evento.pdfNome)"
+              @click="abrirPdfServidor(evento)"
             />
             <q-btn
               v-if="evento.tipo !== 'edicao'"
@@ -165,7 +165,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import localforage from 'localforage'
 import { getAuth } from 'firebase/auth'
@@ -225,35 +225,118 @@ const pesquisarSerie = async (serieParam = null) => {
   serieBusca.value = serie
 
   try {
+    let timeline = []
+
+    // 1. Buscar avaliação original do vendedor (avaliacoes_usadas)
+    try {
+      const avalSnap = await getDoc(doc(db, 'avaliacoes_usadas', serie))
+      if (avalSnap.exists()) {
+        const av = avalSnap.data()
+        timeline.push({
+          tipo: 'avaliacao_usada',
+          dataConclusao: av.dataAvaliacao,
+          responsavel: av.vendedor || 'Vendedor',
+          nomeMaquina: av.modelo || 'Máquina Usada',
+          cliente: av.cliente || '',
+          observacao: `Modelo: ${av.modelo || ''}, Marca: ${av.marca || ''}, Ano: ${av.ano || ''}, Cidade: ${av.cidade || ''}`,
+          unidadeAtual: av.cidade || '',
+          pdfNome: av.pdfNome || null,
+        })
+      }
+    } catch (e) {
+      console.warn('Erro ao buscar avaliacao_usada:', e)
+    }
+
+    // 2. Buscar despachos (despachos_usados)
+    try {
+      const qDesp = query(collection(db, 'despachos_usados'), where('serie', '==', serie))
+      const despSnap = await getDocs(qDesp)
+      despSnap.forEach((d) => {
+        const dp = d.data()
+
+        if (dp.dataDespacho) {
+          timeline.push({
+            tipo: 'despacho',
+            dataConclusao: dp.dataDespacho?.toDate
+              ? dp.dataDespacho.toDate().toISOString()
+              : dp.dataDespacho,
+            responsavel: dp.nomeDespachador || 'Gerente Comercial',
+            nomeMaquina: dp.modelo || '',
+            observacao: `Destino: ${dp.unidadeDestino || ''}. Motorista: ${dp.motoristaNome || 'N/A'}`,
+            unidadeAtual: dp.unidadeOrigem || '',
+            motorista: dp.motoristaNome || '',
+          })
+        }
+
+        if (dp.dataCarregamento) {
+          const isTimestamp = typeof dp.dataCarregamento === 'object' && dp.dataCarregamento.toDate
+          timeline.push({
+            tipo: 'carregamento_usada',
+            dataConclusao: isTimestamp
+              ? dp.dataCarregamento.toDate().toISOString()
+              : dp.dataCarregamento,
+            responsavel: dp.nomeResponsavel || dp.motoristaNome || 'Motorista',
+            nomeMaquina: dp.modelo || '',
+            observacao: `Responsável pela entrega: ${dp.nomeResponsavel || 'N/A'} (CPF: ${dp.cpfResponsavel || 'N/A'})`,
+            unidadeAtual: dp.unidadeOrigem || '',
+            motorista: dp.motoristaNome || '',
+          })
+        }
+
+        if (dp.dataRecebimento) {
+          const isTs = typeof dp.dataRecebimento === 'object' && dp.dataRecebimento.toDate
+          timeline.push({
+            tipo: 'recebimento_usada',
+            dataConclusao: isTs ? dp.dataRecebimento.toDate().toISOString() : dp.dataRecebimento,
+            responsavel: dp.recebidoPor || 'Recebedor',
+            nomeMaquina: dp.modelo || '',
+            observacao: `Unidade: ${dp.unidadeDestino || ''}`,
+            unidadeAtual: dp.unidadeDestino || '',
+            motorista: dp.motoristaNome || '',
+            pdfNome: dp.pdfRecebimentoNome || null,
+          })
+        }
+      })
+    } catch (e) {
+      console.warn('Erro ao buscar despachos_usados:', e)
+    }
+
+    // 3. Buscar histórico do estoque (maquinas)
     const docRef = doc(db, 'maquinas', serie)
     const docSnap = await getDoc(docRef)
-
-    if (!docSnap.exists()) {
+    if (!docSnap.exists() && timeline.length === 0) {
       resultado.value = null
       return
     }
 
-    const dados = docSnap.data()
-    const historico = dados.historico || []
-    const edicoes = dados.edicoesChecklist || []
+    let historicoMaquina = []
+    let checklistEntradaMaquina = []
+    let modeloMaquina = serie
+    if (docSnap.exists()) {
+      const dados = docSnap.data()
+      modeloMaquina = dados.modelo || 'Máquina'
+      historicoMaquina = dados.historico || []
+      checklistEntradaMaquina = dados.checklistEntrada || []
+      const edicoes = dados.edicoesChecklist || []
+      const edicoesFormatadas = edicoes.map((ed) => ({
+        tipo: 'edicao',
+        dataConclusao: ed.data,
+        responsavel: ed.responsavel,
+        observacao: ed.observacao,
+        nomeMaquina: dados.modelo || 'Máquina',
+        alteracoes: ed.alteracoes,
+        pdfNome: ed.pdfNome,
+      }))
+      timeline = [...timeline, ...historicoMaquina, ...edicoesFormatadas]
+    }
 
-    // Converte edições para formato da timeline
-    const edicoesFormatadas = edicoes.map((ed) => ({
-      tipo: 'edicao',
-      dataConclusao: ed.data,
-      responsavel: ed.responsavel,
-      observacao: ed.observacao,
-      nomeMaquina: dados.modelo || 'Máquina',
-      alteracoes: ed.alteracoes,
-      pdfNome: ed.pdfNome,
-    }))
-
-    const timeline = [...historico, ...edicoesFormatadas]
-
-    // Remove duplicados entre histórico e edições (mesmo pdfNome = mesma edição)
     const vistos = new Set()
     const timelineUnica = timeline.filter((item) => {
-      const chave = item.pdfNome || item.idUnicoAcao || JSON.stringify(item.alteracoes)
+      const chave =
+        item.pdfNome ||
+        item.idUnicoAcao ||
+        JSON.stringify(item.alteracoes) ||
+        `${item.tipo}-${item.dataConclusao}-${item.responsavel}`
       if (vistos.has(chave)) return false
       vistos.add(chave)
       return true
@@ -263,10 +346,10 @@ const pesquisarSerie = async (serieParam = null) => {
 
     resultado.value = {
       serie: serie,
-      modelo: dados.modelo || 'Máquina',
+      modelo: modeloMaquina,
       totalEventos: timelineUnica.length,
       historico: timelineUnica,
-      checklistEntrada: dados.checklistEntrada || [],
+      checklistEntrada: checklistEntradaMaquina,
     }
   } catch (e) {
     console.error('Erro ao buscar histórico:', e)
@@ -331,8 +414,11 @@ const tituloEvento = (tipo) => {
     transferencia: 'Transferência de Máquina',
     venda: 'Venda / Saída de NF',
     entrega_cliente: 'Entrega Efetuada ao Cliente',
-    // NOVO:
     edicao: 'Edição de Checklist',
+    avaliacao_usada: 'Avaliação da Usada (Vendedor)',
+    despacho: 'Despacho para Unidade',
+    carregamento_usada: 'Carregamento pelo Motorista',
+    recebimento_usada: 'Recebimento na Unidade',
   }
   return map[tipo] || 'Evento Operacional'
 }
@@ -344,8 +430,11 @@ const iconeEvento = (tipo) => {
     venda: 'handshake',
     recebimento_transferencia: 'move_to_inbox',
     entrega_cliente: 'task_alt',
-    // NOVO:
     edicao: 'edit_note',
+    avaliacao_usada: 'assignment_turned_in',
+    despacho: 'local_shipping',
+    carregamento_usada: 'swap_horiz',
+    recebimento_usada: 'download_done',
   }
   return map[tipo] || 'help'
 }
@@ -357,15 +446,31 @@ const corEvento = (tipo) => {
     venda: 'orange',
     recebimento_transferencia: 'positive',
     entrega_cliente: 'green-6',
-    // NOVO:
     edicao: 'purple-6',
+    avaliacao_usada: 'teal-6',
+    despacho: 'orange-8',
+    carregamento_usada: 'purple-6',
+    recebimento_usada: 'green-8',
   }
   return map[tipo] || 'grey'
 }
 
-const abrirPdfServidor = (pdfNome) => {
-  if (!pdfNome) return
-  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(pdfNome)}`
+const abrirPdfServidor = (evento) => {
+  if (!evento) return
+
+  // PDF da avaliação comercial (vendedor) → usa série no nome
+  if (evento.tipo === 'avaliacao_usada') {
+    const serieBusca = evento.serie || resultado.value?.serie
+    if (!serieBusca) return
+    const url = `${API_BASE_URL}/api/comercial/pdf/${encodeURIComponent(serieBusca)}`
+    window.open(url, '_blank')
+    return
+  }
+
+  // PDFs do pós-venda (transferência, recebimento, edição)
+  const nome = evento.pdfNome
+  if (!nome) return
+  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(nome)}`
   window.open(url, '_blank')
 }
 
