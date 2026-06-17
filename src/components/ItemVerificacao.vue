@@ -1,7 +1,10 @@
 <template>
   <div class="pdf-no-break">
     <q-card-section class="q-py-md">
-      <div class="text-orange-8 text-weight-bold q-mb-sm">{{ index + 1 }}. {{ item.texto }}</div>
+      <div class="text-orange-8 text-weight-bold q-mb-sm">
+        {{ index + 1 }}. {{ item.texto }}
+        <span v-if="item.obrigatorio" class="text-red-5 q-ml-xs">*</span>
+      </div>
 
       <div class="row q-gutter-xs">
         <template v-if="item.tipo === 'TRAFFIC_LIGHT'">

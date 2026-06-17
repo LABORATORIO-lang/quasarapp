@@ -95,6 +95,16 @@
               </q-btn-toggle>
             </div>
             <div class="col-auto">
+              <q-toggle
+                v-model="item.obrigatorio"
+                @update:model-value="item.jaSalvo = false"
+                label="Obrigatório"
+                color="orange-8"
+                dark
+                dense
+              />
+            </div>
+            <div class="absolute-bottom-right q-pa-xs" style="z-index: 1">
               <q-btn
                 icon="delete_outline"
                 color="red-5"
@@ -161,7 +171,8 @@ const obterIconeMaquina = (m) =>
     trator: 'precision_manufacturing',
   })[m] || 'help_outline'
 
-const adicionarItem = () => itens.value.push({ texto: '', tipo: 'TRAFFIC_LIGHT', jaSalvo: false })
+const adicionarItem = () =>
+  itens.value.push({ texto: '', tipo: 'TRAFFIC_LIGHT', jaSalvo: false, obrigatorio: false })
 
 // Diálogo de Exclusão Premium (Dark Mode) + Salvar Automático
 const solicitarRemocao = (index) => {
@@ -208,35 +219,44 @@ onBeforeRouteLeave((to, from, next) => {
 const carregarDados = async () => {
   const docRef = doc(db, route.params.colecao, route.params.modelo)
   const docSnap = await getDoc(docRef)
-  itens.value = docSnap.exists() ? docSnap.data().itens.map((i) => ({ ...i, jaSalvo: true })) : []
+
+  if (docSnap.exists()) {
+    itens.value = docSnap.data().itens.map((i) => ({
+      ...i,
+      jaSalvo: true,
+      obrigatorio: !!i.obrigatorio, // Converte para booleano caso venha indefinido
+    }))
+  } else {
+    itens.value = []
+  }
 }
 
 async function salvarTudo(mensagem = 'Salvo com sucesso!') {
   // Limpeza automática: remove da tela itens que estão 100% vazios
   itens.value = itens.value.filter((i) => i.texto.trim() !== '')
 
-  // LIMPEZA PARA O BANCO: Cria uma cópia dos itens removendo o 'jaSalvo'
+  // Adicionamos o campo 'obrigatorio' aqui para o Firebase salvar
   const itensParaSalvar = itens.value.map((item) => {
     return {
       texto: item.texto,
       tipo: item.tipo,
+      obrigatorio: !!item.obrigatorio, // Garante que seja true ou false
     }
   })
 
   $q.loading.show()
   try {
-    // Agora mandamos apenas os "itensParaSalvar" (limpos) para o Firebase
     await setDoc(
       doc(db, route.params.colecao, route.params.modelo),
       { itens: itensParaSalvar },
       { merge: true },
     )
 
-    // A tela continua usando o itens.value normal com o jaSalvo
     itens.value.forEach((i) => (i.jaSalvo = true))
 
     $q.notify({ icon: 'check_circle', message: mensagem, color: 'green-8', position: 'top-right' })
-  } catch {
+  } catch (error) {
+    console.error(error)
     $q.notify({ icon: 'error', message: 'Erro ao salvar', color: 'red-8', position: 'top-right' })
   } finally {
     $q.loading.hide()

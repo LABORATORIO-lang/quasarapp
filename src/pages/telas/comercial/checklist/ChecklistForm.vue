@@ -874,6 +874,20 @@ const verificarSaida = () => {
 }
 
 const salvarChecklistNoTelemovel = async () => {
+  // 1. --- NOVA VALIDAÇÃO DE ITENS OBRIGATÓRIOS ---
+  const itemPendente = itens.value.find((item) => item.obrigatorio && !item.resposta)
+
+  if (itemPendente) {
+    $q.notify({
+      type: 'negative',
+      message: `Atenção: O item "${itemPendente.texto}" é obrigatório e não foi respondido!`,
+      position: 'top',
+      timeout: 3000,
+    })
+    return // Para a execução da função aqui
+  }
+  // -----------------------------------------------
+
   if (!formulario.value.cliente) {
     $q.notify({ type: 'warning', message: 'Preenche o nome do cliente antes de salvar.' })
     return
@@ -976,7 +990,8 @@ const salvarChecklistNoTelemovel = async () => {
 
       const serieTrim = (formulario.value.serie || '').trim().toUpperCase()
       if (serieTrim) {
-        await setDoc(doc(db, 'avaliacoes_usadas', serieTrim), {
+        // 3. --- AQUI A MÁGICA: CRIA UMA VERSÃO "LEVE" PARA O FIRESTORE ---
+        const dadosParaFirestore = {
           serie: serieTrim,
           modelo: formulario.value.modelo || '',
           marca: formulario.value.marca || '',
@@ -986,12 +1001,33 @@ const salvarChecklistNoTelemovel = async () => {
           cidade: formulario.value.cidade || cidadeCadastro.value || '',
           vendedor: nomeUsuarioCadastro.value || 'Desconhecido',
           dataAvaliacao: new Date().toISOString(),
-          checklistAvaliacao: JSON.parse(JSON.stringify(itens.value)),
-          fotosGerais: JSON.parse(JSON.stringify(fotosGerais.value)),
-          assinaturasVenda: JSON.parse(JSON.stringify(assinaturas.value)),
           status: 'avaliada',
           pdfNome: `${serieTrim}-avaliacao-comercial`,
-        })
+          // Remove objetos complexos e imagens pesadas, mantém apenas o estado
+          checklistAvaliacao: itens.value.map((i) => ({
+            texto: i.texto,
+            resposta: i.resposta,
+            observacao: i.observacao,
+            obrigatorio: !!i.obrigatorio,
+            temFotos: i.fotos?.length > 0,
+          })),
+          fotosGerais: {
+            frente: !!fotosGerais.value.Frente,
+            direita: !!fotosGerais.value.Direita,
+            traseira: !!fotosGerais.value.Traseira,
+            esquerda: !!fotosGerais.value.Esquerda,
+          },
+          assinaturasVenda: {
+            vendedorNome: assinaturas.value.vendedorNome,
+            vendedorAssinado: !!assinaturas.value.vendedorImagem,
+            clienteNome: assinaturas.value.clienteNome,
+            clienteAssinado: !!assinaturas.value.clienteImagem,
+            tecnicoNome: assinaturas.value.tecnicoNome,
+            tecnicoAssinado: !!assinaturas.value.tecnicoImagem,
+          },
+        }
+
+        await setDoc(doc(db, 'avaliacoes_usadas', serieTrim), dadosParaFirestore)
         console.log('✅ Avaliação salva no Firestore para gerente')
       }
     } catch (fsErr) {

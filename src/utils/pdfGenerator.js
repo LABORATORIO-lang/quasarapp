@@ -1,6 +1,7 @@
 import pdfMake from 'pdfmake/build/pdfmake'
 import pdfFonts from 'pdfmake/build/vfs_fonts'
 import logoTimbrado from 'src/assets/logo-timbrado.png'
+import logoAgroReformas from 'src/assets/agroreformas.png'
 import localforage from 'localforage'
 pdfMake.vfs = pdfFonts.pdfMake?.vfs || pdfFonts.default?.pdfMake?.vfs || pdfFonts.vfs
 
@@ -126,11 +127,20 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
     modoPosVenda ? assinaturas?.motoristaImagem : assinaturas?.clienteImagem,
   )
 
+  // Identifica a unidade do usuário (priorizando o cadastro)
+  const unidadeUsuario = dadosDaTela.unidadeUsuario || formulario?.unidadeAtual || ''
+
+  // Escolhe a logo baseada na unidade
+  const logoEscolhida = unidadeUsuario.toLowerCase().includes('agro reforma')
+    ? logoAgroReformas
+    : logoTimbrado
+
   let logoBase64 = null
   try {
-    logoBase64 = formatarImagem(await imagemParaBase64(logoTimbrado))
+    // Carrega a imagem escolhida dinamicamente
+    logoBase64 = formatarImagem(await imagemParaBase64(logoEscolhida))
   } catch (e) {
-    console.error(e)
+    console.error('Erro ao carregar logo:', e)
   }
 
   const todasAsFotos = []

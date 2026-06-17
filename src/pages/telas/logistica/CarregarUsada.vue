@@ -31,20 +31,32 @@
           <div class="row items-center justify-between">
             <div>
               <div class="text-h6 text-weight-bold text-orange-8">{{ d.modelo }}</div>
-              <div class="text-caption text-grey-5">Série: {{ d.serie }}</div>
-              <div class="text-caption text-grey-5 q-mt-xs">
-                <q-icon name="place" size="13px" color="grey-5" class="q-mr-xs" />
-                Origem: {{ d.unidadeOrigem }} → {{ d.unidadeDestino }}
+              <div class="text-caption text-grey-5 q-mb-sm">Série: {{ d.serie }}</div>
+              <div class="text-caption text-grey-4 q-mt-xs">
+                <q-icon name="person" size="14px" color="grey-5" class="q-mr-xs" />
+                Cliente:
+                <span class="text-white text-weight-bold">{{ d.cliente || 'Não informado' }}</span>
+              </div>
+              <div class="text-caption text-grey-4 q-mt-xs">
+                <q-icon name="place" size="14px" color="grey-5" class="q-mr-xs" />
+                Destino: <span class="text-orange-4 text-weight-bold">{{ d.unidadeDestino }}</span>
               </div>
             </div>
-            <q-badge color="purple-6" rounded class="q-px-sm q-py-xs text-white text-weight-bold">
-              Aguardando Carga
-            </q-badge>
+            <div class="column items-end">
+              <q-badge
+                color="purple-6"
+                rounded
+                class="q-px-sm q-py-xs text-white text-weight-bold q-mb-sm"
+              >
+                Aguardando Carga
+              </q-badge>
+              <div class="text-caption text-grey-5" style="font-size: 11px">
+                Origem: {{ d.unidadeOrigem }}
+              </div>
+            </div>
           </div>
         </q-card-section>
-
         <q-separator color="grey-8" />
-
         <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
           <q-btn
             flat
@@ -64,7 +76,6 @@
       </q-card>
     </div>
 
-    <!-- Dialog de Detalhe (visão apenas) -->
     <q-dialog
       v-model="dialogDetalheAberto"
       maximized
@@ -73,7 +84,10 @@
     >
       <q-card class="bg-grey-10 text-white">
         <q-card-section class="bg-grey-9 row items-center justify-between">
-          <div class="text-h6 text-orange-8">{{ maquinaSelecionada?.modelo }}</div>
+          <div>
+            <div class="text-h6 text-orange-8">{{ maquinaSelecionada?.modelo }}</div>
+            <div class="text-caption text-grey-5">Cliente: {{ maquinaSelecionada?.cliente }}</div>
+          </div>
           <q-btn
             flat
             round
@@ -83,11 +97,12 @@
             @click="dialogDetalheAberto = false"
           />
         </q-card-section>
-
         <q-card-section class="q-pa-md">
-          <div class="text-caption text-grey-5 q-mb-md">Itens avaliados pelo vendedor:</div>
+          <div class="text-caption text-grey-5 q-mb-md">
+            Itens obrigatórios avaliados pelo vendedor:
+          </div>
           <q-list separator>
-            <q-item v-for="(item, idx) in maquinaSelecionada?.checklistAvaliacao || []" :key="idx">
+            <q-item v-for="item in itensObrigatorios" :key="item.originalIndex">
               <q-item-section>
                 <q-item-label class="text-white">{{ item.texto }}</q-item-label>
                 <q-item-label caption v-if="item.observacao">
@@ -95,9 +110,7 @@
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-badge :color="corStatus(item.resposta)">
-                  {{ item.resposta || 'N/A' }}
-                </q-badge>
+                <q-badge :color="corStatus(item.resposta)">{{ item.resposta || 'N/A' }}</q-badge>
               </q-item-section>
             </q-item>
           </q-list>
@@ -105,7 +118,6 @@
       </q-card>
     </q-dialog>
 
-    <!-- Dialog de Carga (confirmação + assinatura) -->
     <q-dialog
       v-model="dialogCargaAberto"
       persistent
@@ -117,8 +129,12 @@
         <q-card-section class="col-shrink bg-grey-9 row items-center shadow-2">
           <div>
             <div class="text-h6 text-orange-8">Confirmar Carregamento</div>
-            <div class="text-caption text-grey-5">
+            <div class="text-caption text-white">
               {{ maquinaSelecionada?.modelo }} — {{ maquinaSelecionada?.serie }}
+            </div>
+            <div class="text-caption text-orange-4">
+              Cliente: {{ maquinaSelecionada?.cliente || 'Não informado' }} | Destino:
+              {{ maquinaSelecionada?.unidadeDestino }}
             </div>
           </div>
           <q-space />
@@ -126,74 +142,196 @@
         </q-card-section>
 
         <q-card-section class="col q-pa-md scroll">
-          <div class="text-subtitle2 text-grey-5 q-mb-sm">ITENS AVALIADOS PELO VENDEDOR</div>
-          <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
-            <q-list separator>
-              <q-item
-                v-for="(item, idx) in maquinaSelecionada?.checklistAvaliacao || []"
-                :key="idx"
-              >
-                <q-item-section>
-                  <q-item-label class="text-white">{{ item.texto }}</q-item-label>
-                  <q-item-label caption>
-                    <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
-                      Vendedor: {{ item.resposta || 'N/A' }}
-                    </q-badge>
-                    <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
-                      {{ item.observacao }}
-                    </span>
-                  </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-checkbox v-model="itensConferidos[idx]" :val="true" color="purple-6" dark />
-                </q-item-section>
-              </q-item>
-
-              <div class="q-px-md q-pb-sm">
-                <q-input
-                  v-model="observacoesMotorista[idx]"
-                  label="Observação do motorista"
-                  dark
-                  dense
-                  filled
-                  color="purple-6"
-                  bg-color="grey-10"
-                />
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">FOTOS DO CARREGAMENTO (OBRIGATÓRIO)</div>
+          <q-card
+            class="bg-grey-9 shadow-3 q-mb-lg"
+            style="border-radius: 12px; border: 1px solid #424242"
+          >
+            <q-card-section>
+              <div class="row q-col-gutter-md">
+                <div
+                  class="col-6 col-md-3"
+                  v-for="posicao in ['Frente', 'Direita', 'Traseira', 'Esquerda']"
+                  :key="posicao"
+                >
+                  <div class="text-center">
+                    <div
+                      class="bg-grey-10 flex flex-center cursor-pointer shadow-2"
+                      style="
+                        height: 100px;
+                        border-radius: 8px;
+                        border: 1px dashed #555;
+                        position: relative;
+                      "
+                      @click="abrirCameraFotoGeral(posicao)"
+                    >
+                      <q-img
+                        v-if="fotosGerais[posicao]"
+                        :src="fotosGerais[posicao]"
+                        style="height: 100%; border-radius: 8px"
+                      />
+                      <q-icon v-else name="add_a_photo" color="purple-4" size="md" />
+                      <q-btn
+                        v-if="fotosGerais[posicao]"
+                        round
+                        dense
+                        color="red"
+                        icon="close"
+                        size="xs"
+                        style="position: absolute; top: -5px; right: -5px"
+                        @click.stop="removerFotoGeral(posicao)"
+                      />
+                    </div>
+                    <div class="text-grey-4 text-caption q-mt-xs text-uppercase">{{ posicao }}</div>
+                  </div>
+                </div>
               </div>
-              <q-separator dark />
+            </q-card-section>
+          </q-card>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            id="file-input-motorista"
+            style="display: none"
+            @change="processarFotoGeral"
+          />
+
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">ITENS OBRIGATÓRIOS DO CHECKLIST</div>
+          <q-card class="bg-grey-9 q-mb-lg" style="border: 1px solid #333; border-radius: 8px">
+            <q-list separator>
+              <template v-for="item in itensObrigatorios" :key="item.originalIndex">
+                <q-item>
+                  <q-item-section>
+                    <q-item-label class="text-white">{{ item.texto }}</q-item-label>
+                    <q-item-label caption>
+                      <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
+                        Vendedor: {{ item.resposta || 'N/A' }}
+                      </q-badge>
+                      <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
+                        {{ item.observacao }}
+                      </span>
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-checkbox
+                      v-model="itensConferidos[item.originalIndex]"
+                      :true-value="true"
+                      :false-value="false"
+                      color="purple-6"
+                      dark
+                    />
+                  </q-item-section>
+                </q-item>
+
+                <div class="q-px-md q-pb-sm">
+                  <q-input
+                    v-model="observacoesMotorista[item.originalIndex]"
+                    label="Observação do motorista (opcional)"
+                    dark
+                    dense
+                    filled
+                    color="purple-6"
+                    bg-color="grey-10"
+                  />
+                </div>
+                <q-separator dark />
+              </template>
             </q-list>
           </q-card>
 
-          <div class="text-subtitle2 text-grey-5 q-mb-sm">ASSINATURA DO MOTORISTA</div>
-          <q-card class="bg-grey-10" style="border-radius: 8px; border: 1px solid #555">
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">
+            DADOS DO CLIENTE / RESPONSÁVEL NO LOCAL
+          </div>
+          <q-card class="bg-grey-10 q-mb-lg" style="border-radius: 8px; border: 1px solid #555">
             <q-card-section class="q-pa-md">
-              <div class="flex justify-between items-center q-mb-md">
-                <div class="text-subtitle2 text-weight-bold text-white flex items-center">
-                  <q-icon name="person" class="q-mr-sm text-purple-6" size="sm" />
-                  Motorista
+              <q-input
+                v-model="nomeResponsavelCliente"
+                label="Nome Completo do Responsável"
+                dark
+                filled
+                dense
+                color="purple-6"
+                class="q-mb-md"
+              />
+              <q-input
+                v-model="cpfResponsavelCliente"
+                label="CPF do Responsável"
+                mask="###.###.###-##"
+                dark
+                filled
+                dense
+                color="purple-6"
+                class="q-mb-md"
+              />
+
+              <div class="flex justify-between items-center q-mb-sm">
+                <div class="text-caption text-white flex items-center">
+                  <q-icon name="draw" class="q-mr-sm text-purple-6" size="sm" />
+                  Assinatura do Cliente
                 </div>
                 <q-badge
-                  :color="assinado ? 'green-8' : 'grey-8'"
+                  :color="assinadoCliente ? 'green-8' : 'grey-8'"
                   rounded
-                  class="q-px-sm q-py-xs text-weight-bold"
+                  class="q-px-sm q-py-xs"
                 >
                   <q-icon
-                    :name="assinado ? 'check_circle' : 'pending'"
+                    :name="assinadoCliente ? 'check_circle' : 'pending'"
                     class="q-mr-xs"
                     size="14px"
                   />
-                  {{ assinado ? 'Assinado' : 'Pendente' }}
+                  {{ assinadoCliente ? 'Assinado' : 'Pendente' }}
                 </q-badge>
               </div>
 
               <q-btn
-                :color="assinado ? 'grey-8' : 'purple-6'"
-                :icon="assinado ? 'draw' : 'gesture'"
-                :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+                :color="assinadoCliente ? 'grey-8' : 'purple-6'"
+                :icon="assinadoCliente ? 'draw' : 'gesture'"
+                :label="
+                  assinadoCliente ? 'Refazer Assinatura Cliente' : 'Coletar Assinatura Cliente'
+                "
                 class="full-width text-weight-bold"
                 unelevated
                 style="border-radius: 6px"
-                @click="dialogAssinaturaAberto = true"
+                @click="abrirDialogAssinatura('cliente')"
+              />
+            </q-card-section>
+          </q-card>
+
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">ASSINATURA DO MOTORISTA</div>
+          <q-card class="bg-grey-10 q-mb-lg" style="border-radius: 8px; border: 1px solid #555">
+            <q-card-section class="q-pa-md">
+              <div class="flex justify-between items-center q-mb-sm">
+                <div class="text-caption text-white flex items-center">
+                  <q-icon name="local_shipping" class="q-mr-sm text-purple-6" size="sm" />
+                  Sua Assinatura
+                </div>
+                <q-badge
+                  :color="assinadoMotorista ? 'green-8' : 'grey-8'"
+                  rounded
+                  class="q-px-sm q-py-xs"
+                >
+                  <q-icon
+                    :name="assinadoMotorista ? 'check_circle' : 'pending'"
+                    class="q-mr-xs"
+                    size="14px"
+                  />
+                  {{ assinadoMotorista ? 'Assinado' : 'Pendente' }}
+                </q-badge>
+              </div>
+
+              <q-btn
+                :color="assinadoMotorista ? 'grey-8' : 'purple-6'"
+                :icon="assinadoMotorista ? 'draw' : 'gesture'"
+                :label="
+                  assinadoMotorista
+                    ? 'Refazer Assinatura Motorista'
+                    : 'Coletar Assinatura Motorista'
+                "
+                class="full-width text-weight-bold"
+                unelevated
+                style="border-radius: 6px"
+                @click="abrirDialogAssinatura('motorista')"
               />
             </q-card-section>
           </q-card>
@@ -204,7 +342,7 @@
             color="green-7"
             text-color="white"
             icon="check_circle"
-            label="Confirmar Carregamento"
+            label="Confirmar Carregamento e Gerar PDF"
             class="full-width"
             size="lg"
             :loading="salvando"
@@ -212,13 +350,12 @@
             @click="confirmarCarregamento"
           />
           <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-            Confera todos os itens e assine para confirmar
+            Tire as 4 fotos, preencha os dados e colete as assinaturas.
           </div>
         </q-card-section>
       </q-card>
     </q-dialog>
 
-    <!-- Dialog de Assinatura -->
     <q-dialog
       v-model="dialogAssinaturaAberto"
       persistent
@@ -234,7 +371,11 @@
               <q-avatar icon="draw" color="purple-6" text-color="white" size="md" class="q-mr-sm" />
               <div>
                 <div class="text-h6 text-white" style="line-height: 1.2">
-                  Assinatura do Motorista
+                  {{
+                    tipoAssinaturaAtual === 'motorista'
+                      ? 'Assinatura do Motorista'
+                      : 'Assinatura do Cliente'
+                  }}
                 </div>
                 <div class="text-caption text-purple-4">Assine no espaço em branco abaixo</div>
               </div>
@@ -249,7 +390,6 @@
             />
           </div>
         </q-card-section>
-
         <q-card-section class="col relative-position q-pa-md flex flex-center bg-grey-10">
           <div
             class="signature-container bg-white fit shadow-5"
@@ -287,12 +427,10 @@
               class="absolute-top-right q-ma-sm"
               style="z-index: 20; border: 1px solid #ffcdd2"
               @click="limparAssinatura"
+              ><q-tooltip>Limpar assinatura</q-tooltip></q-btn
             >
-              <q-tooltip>Limpar assinatura</q-tooltip>
-            </q-btn>
           </div>
         </q-card-section>
-
         <q-card-section class="col-shrink row q-col-gutter-md bg-grey-9 shadow-up-2">
           <div class="col-6">
             <q-btn
@@ -327,6 +465,11 @@ import { useQuasar } from 'quasar'
 import { collection, query, where, getDocs, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
+import localforage from 'localforage'
+
+// IMPORTS NECESSÁRIOS PARA O PDF E SERVIDOR LOCAL
+import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
+import { verificarStatusServidor, salvarChecklistLogistica } from 'src/utils/ServidorApi'
 
 const $q = useQuasar()
 
@@ -338,20 +481,53 @@ const dialogAssinaturaAberto = ref(false)
 const maquinaSelecionada = ref(null)
 const itensConferidos = ref({})
 const observacoesMotorista = ref({})
-const assinado = ref(false)
 const salvando = ref(false)
 
-// Canvas
+// Estados de Fotos Gerais
+const fotosGerais = ref({ Frente: null, Direita: null, Traseira: null, Esquerda: null })
+const fotoGeralSelecionada = ref(null)
+
+// Estados do Cliente
+const nomeResponsavelCliente = ref('')
+const cpfResponsavelCliente = ref('')
+const assinadoCliente = ref(false)
+const assinaturaClienteImagem = ref(null)
+
+// Estados do Motorista
+const assinadoMotorista = ref(false)
+const assinaturaMotoristaImagem = ref(null)
+
+// Controle do Canvas
+const tipoAssinaturaAtual = ref('')
 const canvasRef = ref(null)
 const isDrawing = ref(false)
 let lastX = 0
 let lastY = 0
-const assinaturaImagem = ref(null)
+
+const itensObrigatorios = computed(() => {
+  if (!maquinaSelecionada.value?.checklistAvaliacao) return []
+  return maquinaSelecionada.value.checklistAvaliacao
+    .map((item, index) => ({ ...item, originalIndex: index }))
+    .filter((item) => item.obrigatorio === true)
+})
 
 const podeConfirmar = computed(() => {
-  const lista = maquinaSelecionada.value?.checklistAvaliacao || []
-  const todosConferidos = lista.every((_, idx) => itensConferidos.value[idx] === true)
-  return assinado.value && todosConferidos
+  const lista = itensObrigatorios.value
+
+  const dadosClienteOk =
+    nomeResponsavelCliente.value.trim() !== '' &&
+    (cpfResponsavelCliente.value || '').replace(/\D/g, '').length === 11
+  const assinaturasOk = assinadoMotorista.value && assinadoCliente.value
+
+  // VALIDA SE AS 4 FOTOS FORAM TIRADAS
+  const fotosOk = Object.values(fotosGerais.value).every((foto) => foto !== null)
+
+  let todosConferidos = true
+  if (lista.length > 0) {
+    todosConferidos = lista.every((item) => itensConferidos.value[item.originalIndex] === true)
+  }
+
+  return dadosClienteOk && assinaturasOk && fotosOk && todosConferidos
 })
 
 const corStatus = (resposta) => {
@@ -367,10 +543,44 @@ const corStatus = (resposta) => {
   return map[resposta] || 'grey'
 }
 
+// --- FUNÇÕES DE CÂMERA ---
+const abrirCameraFotoGeral = (posicao) => {
+  fotoGeralSelecionada.value = posicao
+  document.getElementById('file-input-motorista')?.click()
+}
+
+const processarFotoGeral = (event) => {
+  const file = event.target.files[0]
+  const posicaoFoto = fotoGeralSelecionada.value
+  if (!file || !posicaoFoto) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    fotosGerais.value[posicaoFoto] = e.target.result
+    fotoGeralSelecionada.value = null
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+const removerFotoGeral = (posicao) => {
+  fotosGerais.value[posicao] = null
+}
+
+// --- BUSCAS E DIALOGS ---
 const buscarDespachos = async () => {
   carregando.value = true
   try {
-    const uid = getAuth().currentUser?.uid
+    // Aguarda o Firebase Auth inicializar se necessário
+    const auth = getAuth()
+    let uid = auth.currentUser?.uid
+
+    if (!uid) {
+      // Tenta recuperar da sessão local se estiver offline ou em transição
+      const sessao = await localforage.getItem('user_session')
+      uid = sessao?.uid
+    }
+
     if (!uid) {
       carregando.value = false
       return
@@ -397,14 +607,31 @@ const abrirDetalhe = (d) => {
 
 const abrirCarga = (d) => {
   maquinaSelecionada.value = d
+
+  // Garantimos que o objeto comece VAZIO.
+  // Sem chaves definidas, o Quasar entende que todos os checkboxes estão falsos.
   itensConferidos.value = {}
+
   observacoesMotorista.value = {}
-  assinado.value = false
-  assinaturaImagem.value = null
+
+  // Reseta fotos e assinaturas
+  fotosGerais.value = { Frente: null, Direita: null, Traseira: null, Esquerda: null }
+  nomeResponsavelCliente.value = ''
+  cpfResponsavelCliente.value = ''
+  assinadoCliente.value = false
+  assinaturaClienteImagem.value = null
+  assinadoMotorista.value = false
+  assinaturaMotoristaImagem.value = null
+
   dialogCargaAberto.value = true
 }
 
-// Canvas
+const abrirDialogAssinatura = (tipo) => {
+  tipoAssinaturaAtual.value = tipo
+  dialogAssinaturaAberto.value = true
+}
+
+// --- FUNÇÕES DO CANVAS (Assinatura) ---
 const initCanvas = async () => {
   await nextTick()
   const canvas = canvasRef.value
@@ -447,19 +674,8 @@ const startDrawing = (e) => {
   lastX = pos.x
   lastY = pos.y
 }
-
 const stopDrawing = () => {
   isDrawing.value = false
-}
-
-const confirmarAssinatura = () => {
-  if (!assinado.value) {
-    $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
-    return
-  }
-  assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
-  dialogAssinaturaAberto.value = false
-  $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
 }
 
 const draw = (e) => {
@@ -472,30 +688,122 @@ const draw = (e) => {
   ctx.stroke()
   lastX = pos.x
   lastY = pos.y
-  assinado.value = true
+
+  if (tipoAssinaturaAtual.value === 'motorista') assinadoMotorista.value = true
+  else assinadoCliente.value = true
 }
 
 const limparAssinatura = () => {
   const ctx = canvasRef.value.getContext('2d')
   ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  assinado.value = false
-  assinaturaImagem.value = null
+  if (tipoAssinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = false
+    assinaturaMotoristaImagem.value = null
+  } else {
+    assinadoCliente.value = false
+    assinaturaClienteImagem.value = null
+  }
 }
 
+const confirmarAssinatura = () => {
+  const assinado =
+    tipoAssinaturaAtual.value === 'motorista' ? assinadoMotorista.value : assinadoCliente.value
+  if (!assinado) {
+    $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
+    return
+  }
+  const imagemBase64 = canvasRef.value.toDataURL('image/png')
+  if (tipoAssinaturaAtual.value === 'motorista') assinaturaMotoristaImagem.value = imagemBase64
+  else assinaturaClienteImagem.value = imagemBase64
+
+  dialogAssinaturaAberto.value = false
+  $q.notify({ type: 'positive', message: 'Assinatura salva.' })
+}
+
+// --- CONFIRMAÇÃO FINAL, GERAÇÃO DO PDF E SALVAMENTO ---
 const confirmarCarregamento = async () => {
   salvando.value = true
   try {
-    const docRef = doc(db, 'despachos_usados', maquinaSelecionada.value.id)
+    const mq = maquinaSelecionada.value
+    const agora = new Date()
+
+    // 1. MONTAR O OBJETO PARA O PDF
+    // O seu pdfGenerator.js costuma ler 'dadosFormulario', 'respostasChecklist', 'assinaturas', etc.
+    const dadosParaPdf = {
+      id: mq.id,
+      tipoPdf: 'carregamento_motorista',
+      nomeMaquina: mq.modelo,
+      dadosFormulario: {
+        serie: mq.serie,
+        marca: mq.marca || '',
+        ano: mq.ano || '',
+        cliente: nomeResponsavelCliente.value,
+        unidadeOrigem: mq.unidadeOrigem,
+        unidadeDestino: mq.unidadeDestino,
+      },
+      // Passamos apenas os itens que o motorista viu e conferiu
+      respostasChecklist: itensObrigatorios.value.map((item) => ({
+        texto: item.texto,
+        resposta: itensConferidos.value[item.originalIndex] ? 'CONFERIDO' : 'FALTOU',
+        observacao: observacoesMotorista.value[item.originalIndex] || '',
+      })),
+      assinaturas: {
+        // Adaptamos as chaves para baterem com o PDF (responsavel/motorista)
+        responsavelNome: nomeResponsavelCliente.value,
+        responsavelCpf: cpfResponsavelCliente.value,
+        responsavelImagem: assinaturaClienteImagem.value,
+        motoristaNome: mq.motoristaNome || 'Motorista',
+        motoristaImagem: assinaturaMotoristaImagem.value,
+      },
+      fotosGerais: fotosGerais.value,
+      dataConclusao: agora.toLocaleDateString('pt-BR'),
+      dataHoraFormatada:
+        agora.toLocaleDateString('pt-BR') +
+        ' às ' +
+        agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      unidadeUsuario: mq.unidadeOrigem, // Para a logo correta
+    }
+
+    // 2. GERAR O PDF EM BASE64
+    const arquivoPdfBase64 = await gerarChecklistPdf(dadosParaPdf, true)
+    const base64Limpo = arquivoPdfBase64.includes(',')
+      ? arquivoPdfBase64.split(',')[1]
+      : arquivoPdfBase64
+    const nomeArquivoPDF = `${mq.serie}-carregamento-${Date.now()}`
+
+    // 3. ENVIAR PARA O SERVIDOR LOCAL (Pasta da unidade de Origem)
+    try {
+      const servidorOnline = await verificarStatusServidor()
+      if (servidorOnline.online) {
+        // Você precisará ter essa função no ServidorApi.js (Pode ser idêntica a salvarChecklistPosVenda)
+        await salvarChecklistLogistica(mq.unidadeOrigem, nomeArquivoPDF, base64Limpo)
+        console.log('✅ PDF de carregamento enviado ao servidor.')
+      }
+    } catch (errServidor) {
+      console.warn('Servidor local offline:', errServidor.message)
+      // Aqui você pode criar a lógica de Fila Offline depois, se necessário
+    }
+
+    // 4. ATUALIZAR O FIRESTORE (Apenas Metadados e o nome do PDF gerado)
+    const docRef = doc(db, 'despachos_usados', mq.id)
     await updateDoc(docRef, {
       status: 'carregado',
       dataCarregamento: Timestamp.now(),
-      assinaturaMotoristaImagem: assinaturaImagem.value,
       observacoesMotorista: { ...observacoesMotorista.value },
       itensConferidos: { ...itensConferidos.value },
+      nomeResponsavelCliente: nomeResponsavelCliente.value,
+      cpfResponsavelCliente: cpfResponsavelCliente.value,
+      // Guarda o nome do PDF gerado para depois buscar no histórico
+      pdfCarregamentoNome: nomeArquivoPDF,
+
+      // OPTATIVO: Se não quiser salvar imagens base64 no Firebase para poupar espaço,
+      // basta remover as 3 linhas abaixo. Como o PDF já está no servidor, você não precisa delas aqui.
+      assinaturaMotoristaImagem: assinaturaMotoristaImagem.value,
+      assinaturaClienteImagem: assinaturaClienteImagem.value,
+      fotosCarregamento: fotosGerais.value,
     })
 
-    // Atualiza cardálogo local (opcional, mas já faz parte do flow de entrega)
-    $q.notify({ type: 'positive', message: 'Carregamento confirmado com sucesso!' })
+    $q.notify({ type: 'positive', message: 'Carregamento confirmado e PDF gerado com sucesso!' })
     dialogCargaAberto.value = false
     await buscarDespachos()
   } catch (e) {

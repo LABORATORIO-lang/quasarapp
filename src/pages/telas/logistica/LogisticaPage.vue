@@ -18,7 +18,9 @@
             <q-avatar size="48px" color="orange-8" text-color="black">
               <q-icon name="local_shipping" size="28px" />
             </q-avatar>
-            <q-badge v-if="totalPendentesEntregas > 0" color="red-7" floating rounded>...</q-badge>
+            <q-badge v-if="totalPendentesEntregas > 0" color="red-7" floating rounded>
+              {{ totalPendentesEntregas }}
+            </q-badge>
           </div>
           <div class="q-ml-md col">
             <div class="text-subtitle1 text-weight-bold row items-center">Entregas Pendentes</div>
@@ -72,18 +74,19 @@
 import { ref, onMounted } from 'vue'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
+import { getAuth } from 'firebase/auth'
 import localforage from 'localforage'
 
 // Estados Reativos
-const totalPendentes = ref(0)
+const totalPendentesEntregas = ref(0)
 const minhaUnidade = ref('')
+const totalPendentesUsadas = ref(0)
 
 /**
  * Busca a quantidade de máquinas que estão aguardando entrega na filial do usuário
  */
 const consultarEntregasPendentes = async () => {
   try {
-    // 1. Pega os dados do usuário logado (Resolvendo inconsistência #11)
     const sessao = await localforage.getItem('user_session')
     if (sessao) {
       minhaUnidade.value = sessao.unidade || sessao.cidade || ''
@@ -94,35 +97,25 @@ const consultarEntregasPendentes = async () => {
       return
     }
 
-    // 2. Monta a consulta no Firestore
-    // Filtra por máquinas cujo status seja aguardando e pertençam à unidade atual
     const maquinasRef = collection(db, 'maquinas')
     const q = query(
       maquinasRef,
       where('status', '==', 'aguardando_entrega_cliente'),
-      where('unidadeAtual', '==', 'Inbound_Unit_Placeholder'), // Placeholder para alinhar com a lógica do Firestore
+      where('unidadeAtual', '==', minhaUnidade.value),
     )
 
     const querySnapshot = await getDocs(q)
-
-    // 3. Atualiza o contador na tela
-    totalPendentes.value = querySnapshot.size
-    console.log(
-      `📦 Encontradas ${totalPendentes.value} entregas pendentes para a unidade ${minhaUnidade.value}`,
-    )
+    totalPendentesEntregas.value = querySnapshot.size
   } catch (error) {
     console.error('Erro ao contabilizar entregas pendentes:', error)
   }
 }
-const totalPendentesUsadas = ref(0)
 
 const consultarDespachosPendentes = async () => {
   try {
-    const { query, collection, where, getDocs } = await import('firebase/firestore')
-    const { db } = await import('src/boot/firebase')
-    const { getAuth } = await import('firebase/auth')
     const uid = getAuth().currentUser?.uid
     if (!uid) return
+
     const q = query(
       collection(db, 'despachos_usados'),
       where('motoristaUid', '==', uid),
@@ -139,9 +132,6 @@ onMounted(() => {
   consultarEntregasPendentes()
   consultarDespachosPendentes()
 })
-
-// Inicializa a consulta no ciclo de vida do componente
-onMounted(consultarEntregasPendentes)
 </script>
 
 <style scoped>

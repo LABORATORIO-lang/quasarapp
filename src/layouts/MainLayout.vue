@@ -111,6 +111,7 @@ const permissoes = {
   vendedor: ['comercial', 'consorcio', 'usados'],
   gerente_comercial: ['admin', 'comercial'],
   gerente_pos_venda: ['admin', 'pos_venda', 'starpes'],
+  motorista: ['logistica'],
 }
 
 const perfilLabels = {
@@ -120,6 +121,7 @@ const perfilLabels = {
   gerente_comercial: 'Gerente Comercial',
   gerente_pos_venda: 'Gerente Pós-Venda',
   master: 'Master',
+  motorista: ['logistica'],
 }
 
 const perfilLabel = computed(() => {

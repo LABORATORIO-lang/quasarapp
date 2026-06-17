@@ -1,6 +1,5 @@
 <template>
   <q-page class="q-pa-lg text-white bg-grey-10">
-    <!-- Cabeçalho -->
     <div class="row items-center justify-between q-mb-xl q-col-gutter-sm">
       <div class="row items-center q-gutter-sm">
         <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
@@ -11,12 +10,10 @@
       </div>
     </div>
 
-    <!-- Loading -->
     <div v-if="carregando" class="flex flex-center q-py-xl">
       <q-spinner color="orange-8" size="48px" />
     </div>
 
-    <!-- Lista vazia -->
     <div v-else-if="avaliacoes.length === 0" class="flex flex-center column q-py-xl text-center">
       <q-icon name="pending_actions" size="72px" color="grey-7" class="q-mb-md" />
       <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma avaliação pendente</div>
@@ -25,7 +22,6 @@
       </div>
     </div>
 
-    <!-- Lista de avaliações -->
     <div v-else class="q-gutter-md">
       <q-card
         v-for="av in avaliacoes"
@@ -55,29 +51,6 @@
           </div>
         </q-card-section>
 
-        <!-- Preview do checklist -->
-        <q-card-section class="q-pt-xs q-pb-sm">
-          <div class="text-caption text-grey-5 q-mb-xs">Itens avaliados:</div>
-          <div class="row q-gutter-xs">
-            <q-chip
-              v-for="(item, idx) in (av.checklistAvaliacao || []).slice(0, 5)"
-              :key="idx"
-              dense
-              :color="corChecklist(item.resposta)"
-              text-color="white"
-              size="sm"
-            >
-              {{ item.resposta || 'N/A' }}
-            </q-chip>
-            <span
-              v-if="(av.checklistAvaliacao || []).length > 5"
-              class="text-caption text-grey-5 q-ml-sm"
-            >
-              +{{ av.checklistAvaliacao.length - 5 }} itens
-            </span>
-          </div>
-        </q-card-section>
-
         <q-separator color="grey-8" />
 
         <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
@@ -92,7 +65,6 @@
       </q-card>
     </div>
 
-    <!-- Dialog de Despacho -->
     <q-dialog v-model="dialogDespachoAberto" persistent>
       <q-card class="bg-grey-9 text-white" style="min-width: 350px; border-radius: 12px">
         <q-card-section class="row items-center">
@@ -178,34 +150,25 @@ import {
 } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
+import { useUnidades } from 'src/composables/useUnidades' // IMPORTADO DO SEU SISTEMA
 
 const $q = useQuasar()
 
 const carregando = ref(true)
 const avaliacoes = ref([])
-const unidades = ref(['Unidade A', 'Unidade B', 'Unidade C', 'Matriz']) // ← AJUSTE PARA SUAS UNIDADES REAIS
 const motoristas = ref([])
 const dialogDespachoAberto = ref(false)
 const maquinaSelecionada = ref(null)
 const salvando = ref(false)
+
+// Puxa as unidades reais do seu banco
+const { unidades, carregarUnidades } = useUnidades()
 
 const despacho = ref({
   unidadeDestino: '',
   motorista: null,
   observacao: '',
 })
-
-const corChecklist = (resposta) => {
-  const map = {
-    BOM: 'positive',
-    ATENCAO: 'warning',
-    RUIM: 'negative',
-    SIM: 'positive',
-    NAO: 'negative',
-    OK: 'positive',
-  }
-  return map[resposta] || 'grey'
-}
 
 const formatarData = (iso) => {
   if (!iso) return ''
@@ -265,7 +228,7 @@ const confirmarDespacho = async () => {
     const av = maquinaSelecionada.value
     const auth = getAuth()
 
-    // 1. Cria o documento na coleção despachos_usados
+    // 1. Cria o documento na coleção despachos_usados (LIMPO, SEM FOTOS/ASSINATURAS DO VENDEDOR)
     const docDespacho = await addDoc(collection(db, 'despachos_usados'), {
       // Dados da máquina
       serie: av.serie,
@@ -274,10 +237,9 @@ const confirmarDespacho = async () => {
       ano: av.ano || '',
       horimetro: av.horimetro || '',
 
-      // Dados originais do vendedor
-      fotosGerais: av.fotosGerais || {},
+      // Envia apenas o checklist (que é texto leve).
+      // O motorista filtra os obrigatórios no lado dele.
       checklistAvaliacao: av.checklistAvaliacao || [],
-      assinaturasVenda: av.assinaturasVenda || {},
       cliente: av.cliente || '',
 
       // Dados do despacho
@@ -289,10 +251,13 @@ const confirmarDespacho = async () => {
       status: 'despachado',
       observacaoGerente: despacho.value.observacao || '',
 
-      // Inicializados em branco — preenchidos depois
+      // Inicializados em branco — o motorista vai preencher na hora de carregar
       dataCarregamento: null,
-      assinaturaMotoristaImagem: null,
+      fotosCarregamento: null, // Motorista vai inserir
+      assinaturaMotoristaImagem: null, // Motorista vai inserir
       observacoesMotorista: {},
+
+      // Para a etapa seguinte (Recebimento)
       dataRecebimento: null,
       recebidoPor: '',
       assinaturaRecebedorImagem: null,
@@ -325,6 +290,7 @@ const confirmarDespacho = async () => {
 }
 
 onMounted(async () => {
+  await carregarUnidades() // Busca as unidades reais no banco
   await buscarMotoristas()
   await buscarAvaliacoes()
 })

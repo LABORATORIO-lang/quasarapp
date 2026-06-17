@@ -1056,6 +1056,20 @@ const verificarSerieImediata = async () => {
 
 // ================= 10. SALVAMENTO E NAVEGAÇÃO =================
 const salvarChecklistNoTelemovel = async () => {
+  // 1. --- NOVA VALIDAÇÃO DE ITENS OBRIGATÓRIOS ---
+  const itemPendente = itens.value.find((item) => item.obrigatorio && !item.resposta)
+
+  if (itemPendente) {
+    $q.notify({
+      type: 'negative',
+      message: `Atenção: O item "${itemPendente.texto}" é obrigatório e não foi respondido!`,
+      position: 'top',
+      timeout: 3000,
+    })
+    return // Para a execução da função aqui
+  }
+  // -----------------------------------------------
+
   if (!formulario.value.serie) {
     $q.notify({ type: 'warning', message: 'Preenche o número de série.' })
     return
@@ -1148,6 +1162,7 @@ const salvarChecklistNoTelemovel = async () => {
 
       setor,
       userName: userName.value,
+      unidadeUsuario: formulario.value.unidadeAtual,
       dataHoraFormatada,
     }
 
@@ -1219,11 +1234,20 @@ const salvarChecklistNoTelemovel = async () => {
       console.warn('Servidor local offline:', servidorError.message)
     }
 
+    // --- OTIMIZAÇÃO: Filtra para não enviar fotos em Base64 para o Firebase ---
+    const checklistOtimizado = checklistAcumulado.map((item) => ({
+      texto: item.texto,
+      resposta: item.resposta,
+      observacao: item.observacao,
+      obrigatorio: !!item.obrigatorio,
+      temFotos: item.fotos?.length > 0, // Apenas um booleano
+    }))
+
     const payloadFirebase = {
       status: modoEntregaCliente.value ? 'entregue' : 'em_estoque',
       unidadeAtual: formulario.value.unidadeAtual,
       unidadeDestino: modoEntregaCliente.value ? route.query.cliente || '' : '',
-      checklistEntrada: JSON.parse(JSON.stringify(toRaw(checklistAcumulado))),
+      checklistEntrada: checklistOtimizado, // Enviando a versão limpa
       ultimaAtualizacao: Timestamp.now(),
     }
 
