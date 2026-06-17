@@ -150,18 +150,13 @@ import {
 } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
-<<<<<<< HEAD
 import { useUnidades } from 'src/composables/useUnidades' // IMPORTADO DO SEU SISTEMA
-=======
-import { useUnidades } from 'src/composables/useUnidades'
->>>>>>> 2fed1eb04798d26c1817777495e31ab2548687e0
 
 const $q = useQuasar()
 
 const carregando = ref(true)
 const avaliacoes = ref([])
 const motoristas = ref([])
-const { unidades, carregarUnidades } = useUnidades()
 const dialogDespachoAberto = ref(false)
 const maquinaSelecionada = ref(null)
 const salvando = ref(false)
@@ -242,12 +237,8 @@ const confirmarDespacho = async () => {
       ano: av.ano || '',
       horimetro: av.horimetro || '',
 
-<<<<<<< HEAD
       // Envia apenas o checklist (que é texto leve).
       // O motorista filtra os obrigatórios no lado dele.
-=======
-      // Dados originais do vendedor
->>>>>>> 2fed1eb04798d26c1817777495e31ab2548687e0
       checklistAvaliacao: av.checklistAvaliacao || [],
       cliente: av.cliente || '',
 
@@ -299,11 +290,7 @@ const confirmarDespacho = async () => {
 }
 
 onMounted(async () => {
-<<<<<<< HEAD
   await carregarUnidades() // Busca as unidades reais no banco
-=======
-  await carregarUnidades()
->>>>>>> 2fed1eb04798d26c1817777495e31ab2548687e0
   await buscarMotoristas()
   await buscarAvaliacoes()
 })
