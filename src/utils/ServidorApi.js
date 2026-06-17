@@ -13,14 +13,7 @@ export const API_BASE_URL = 'https://gonna-sessions-farms-org.trycloudflare.com'
  * @param {string} vendedor - Nome do vendedor
  * @param {object} checklistData - Dados do checklist
  */
-export async function salvarChecklistComercial(
-  cidade,
-  vendedor,
-  pdfBase64,
-  cliente,
-  nomeMaquina,
-  serie,
-) {
+export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, cliente, nomeMaquina) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/comercial/checklist`, {
       method: 'POST',
@@ -31,7 +24,6 @@ export async function salvarChecklistComercial(
         pdfBase64,
         cliente,
         nomeMaquina,
-        serie,
       }),
     })
 
@@ -148,6 +140,31 @@ export async function uploadPdfParaServidor(pdfBase64, filename, tipo = 'checkli
     return await response.json()
   } catch (error) {
     console.error('Erro ao fazer upload do PDF:', error)
+    throw error
+  }
+}
+// ... dentro do seu ServidorApi.js ...
+
+export async function salvarChecklistLogistica(cidade, pdfNome, pdfBase64) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/logistica/carregamento`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        cidade,
+        pdfNome,
+        pdfBase64,
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json()
+      throw new Error(err.error || `HTTP ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Erro ao salvar checklist logística no servidor:', error)
     throw error
   }
 }
@@ -340,33 +357,6 @@ export async function salvarChecklistCompleto(categoria, dados) {
   }
 }
 
-/**
- * Salvar PDF de Carregamento da Logística
- */
-export async function salvarChecklistLogistica(cidade, pdfNome, pdfBase64) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/logistica/carregamento`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        cidade,
-        pdfNome,
-        pdfBase64,
-      }),
-    })
-
-    if (!response.ok) {
-      const err = await response.json()
-      throw new Error(err.error || `HTTP ${response.status}`)
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Erro ao salvar checklist logística no servidor:', error)
-    throw error
-  }
-}
-
 export default {
   salvarChecklistNoServidor,
   listarChecklistsDoServidor,
@@ -375,6 +365,6 @@ export default {
   fazerBackupNoServidor,
   listarBackupsDoServidor,
   verificarStatusServidor,
-  salvarChecklistCompleto, // <--- ADICIONE ESTA LINHA AQUI
+  salvarChecklistCompleto,
   salvarChecklistLogistica,
 }

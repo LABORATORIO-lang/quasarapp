@@ -985,25 +985,21 @@ const salvarChecklistNoTelemovel = async () => {
     }
 
     // --- NOVO: Salva avaliação da usada no Firestore para o Gerente ver ---
+    // ... (código anterior)
     try {
       const { setDoc, doc } = await import('firebase/firestore')
       const { db } = await import('src/boot/firebase')
 
       const serieTrim = (formulario.value.serie || '').trim().toUpperCase()
       if (serieTrim) {
-<<<<<<< HEAD
-        // 3. --- AQUI A MÁGICA: CRIA UMA VERSÃO "LEVE" PARA O FIRESTORE ---
-        const dadosParaFirestore = {
-=======
-        // Limpa fotos dos itens antes de salvar no Firestore
+        // Limpa fotos dos itens antes de salvar no Firestore para não estourar o limite
         const itensLimpos = JSON.parse(JSON.stringify(itens.value)).map((item) => {
           const resto = { ...item }
           delete resto.fotos
           return resto
         })
 
-        await setDoc(doc(db, 'avaliacoes_usadas', serieTrim), {
->>>>>>> 2fed1eb04798d26c1817777495e31ab2548687e0
+        const dadosParaFirestore = {
           serie: serieTrim,
           modelo: formulario.value.modelo || '',
           marca: formulario.value.marca || '',
@@ -1013,14 +1009,10 @@ const salvarChecklistNoTelemovel = async () => {
           cidade: formulario.value.cidade || cidadeCadastro.value || '',
           vendedor: nomeUsuarioCadastro.value || 'Desconhecido',
           dataAvaliacao: new Date().toISOString(),
-<<<<<<< HEAD
-=======
-          checklistAvaliacao: itensLimpos,
->>>>>>> 2fed1eb04798d26c1817777495e31ab2548687e0
           status: 'avaliada',
           pdfNome: `${serieTrim}-avaliacao-comercial`,
-          // Remove objetos complexos e imagens pesadas, mantém apenas o estado
-          checklistAvaliacao: itens.value.map((i) => ({
+          // Checklist formatado para visualização rápida no painel do gerente
+          checklistAvaliacao: itensLimpos.map((i) => ({
             texto: i.texto,
             resposta: i.resposta,
             observacao: i.observacao,
@@ -1049,7 +1041,7 @@ const salvarChecklistNoTelemovel = async () => {
     } catch (fsErr) {
       console.warn('⚠️ Falha ao salvar avaliação no Firestore:', fsErr.message)
     }
-
+    // ... (resto do código)
     // Remove o rascunho correspondente se existir
     if (rascunhoId.value) {
       await removerRascunho(rascunhoId.value)
