@@ -13,28 +13,35 @@ export const API_BASE_URL = 'https://gonna-sessions-farms-org.trycloudflare.com'
  * @param {string} vendedor - Nome do vendedor
  * @param {object} checklistData - Dados do checklist
  */
-export async function salvarChecklistComercial(cidade, vendedor, pdfBase64, cliente, nomeMaquina) {
+// src/utils/ServidorApi.js
+
+export const salvarChecklistComercial = async (
+  cidade,
+  vendedor,
+  pdfBase64,
+  cliente,
+  nomeMaquina,
+  serie,
+) => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/comercial/checklist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // ATENÇÃO AQUI: A variável 'serie' deve estar declarada dentro deste JSON.stringify
       body: JSON.stringify({
         cidade,
         vendedor,
         pdfBase64,
         cliente,
         nomeMaquina,
+        serie,
       }),
     })
 
-    if (!response.ok) {
-      const err = await response.json()
-      throw new Error(err.error || `HTTP ${response.status}`)
-    }
-
+    if (!response.ok) throw new Error('Erro ao salvar no servidor')
     return await response.json()
   } catch (error) {
-    console.error('Erro ao salvar checklist comercial no servidor:', error)
+    console.error('FALHA AO ENVIAR PARA O SERVIDOR:', error)
     throw error
   }
 }
@@ -145,13 +152,13 @@ export async function uploadPdfParaServidor(pdfBase64, filename, tipo = 'checkli
 }
 // ... dentro do seu ServidorApi.js ...
 
-export async function salvarChecklistLogistica(cidade, pdfNome, pdfBase64) {
+export async function salvarChecklistLogistica(motorista, pdfNome, pdfBase64) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/logistica/carregamento`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        cidade,
+        motorista, // ⬅️ Mudamos de 'cidade' para 'motorista'
         pdfNome,
         pdfBase64,
       }),
@@ -168,7 +175,6 @@ export async function salvarChecklistLogistica(cidade, pdfNome, pdfBase64) {
     throw error
   }
 }
-
 export async function salvarTransferenciaPosVenda(cidade, pdfNome, pdfBase64) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/pos-venda/transferencia`, {
@@ -357,6 +363,32 @@ export async function salvarChecklistCompleto(categoria, dados) {
   }
 }
 
+/**
+ * Atualiza o número de série nos PDFs salvos no servidor local
+ */
+export async function atualizarSeriePdfServidor(serieAntiga, serieNova) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/maquinas/atualizar-serie`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        serieAntiga,
+        serieNova,
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.json()
+      throw new Error(err.error || `HTTP ${response.status}`)
+    }
+
+    return await response.json()
+  } catch (error) {
+    console.error('Erro ao pedir para o servidor renomear PDFs:', error)
+    throw error
+  }
+}
+
 export default {
   salvarChecklistNoServidor,
   listarChecklistsDoServidor,
@@ -367,4 +399,5 @@ export default {
   verificarStatusServidor,
   salvarChecklistCompleto,
   salvarChecklistLogistica,
+  atualizarSeriePdfServidor,
 }

@@ -227,7 +227,7 @@ const pesquisarSerie = async (serieParam = null) => {
   try {
     let timeline = []
 
-    // 1. Buscar avaliação original do vendedor (avaliacoes_usadas)
+    // 1. Buscar avaliação original do vendedor
     try {
       const avalSnap = await getDoc(doc(db, 'avaliacoes_usadas', serie))
       if (avalSnap.exists()) {
@@ -244,10 +244,10 @@ const pesquisarSerie = async (serieParam = null) => {
         })
       }
     } catch (e) {
-      console.warn('Erro ao buscar avaliacao_usada:', e)
+      console.warn('Erro avaliacao_usada:', e)
     }
 
-    // 2. Buscar despachos (despachos_usados)
+    // 2. Buscar despachos logísticos
     try {
       const qDesp = query(collection(db, 'despachos_usados'), where('serie', '==', serie))
       const despSnap = await getDocs(qDesp)
@@ -275,11 +275,13 @@ const pesquisarSerie = async (serieParam = null) => {
             dataConclusao: isTimestamp
               ? dp.dataCarregamento.toDate().toISOString()
               : dp.dataCarregamento,
-            responsavel: dp.nomeResponsavel || dp.motoristaNome || 'Motorista',
+            responsavel: dp.nomeResponsavelCliente || dp.motoristaNome || 'Motorista',
             nomeMaquina: dp.modelo || '',
-            observacao: `Responsável pela entrega: ${dp.nomeResponsavel || 'N/A'} (CPF: ${dp.cpfResponsavel || 'N/A'})`,
+            observacao: `Responsável pela entrega: ${dp.nomeResponsavelCliente || 'N/A'} (CPF: ${dp.cpfResponsavelCliente || 'N/A'})`,
             unidadeAtual: dp.unidadeOrigem || '',
             motorista: dp.motoristaNome || '',
+            // PUXANDO O NOME DO PDF DO CARREGAMENTO AQUI:
+            pdfNome: dp.pdfCarregamentoNome || null,
           })
         }
 
@@ -293,15 +295,16 @@ const pesquisarSerie = async (serieParam = null) => {
             observacao: `Unidade: ${dp.unidadeDestino || ''}`,
             unidadeAtual: dp.unidadeDestino || '',
             motorista: dp.motoristaNome || '',
+            // PUXANDO O NOME DO PDF DO RECEBIMENTO:
             pdfNome: dp.pdfRecebimentoNome || null,
           })
         }
       })
     } catch (e) {
-      console.warn('Erro ao buscar despachos_usados:', e)
+      console.warn('Erro despachos:', e)
     }
 
-    // 3. Buscar histórico do estoque (maquinas)
+    // 3. Buscar histórico de estoque
     const docRef = doc(db, 'maquinas', serie)
     const docSnap = await getDoc(docRef)
     if (!docSnap.exists() && timeline.length === 0) {
@@ -312,6 +315,7 @@ const pesquisarSerie = async (serieParam = null) => {
     let historicoMaquina = []
     let checklistEntradaMaquina = []
     let modeloMaquina = serie
+
     if (docSnap.exists()) {
       const dados = docSnap.data()
       modeloMaquina = dados.modelo || 'Máquina'
@@ -330,13 +334,16 @@ const pesquisarSerie = async (serieParam = null) => {
       timeline = [...timeline, ...historicoMaquina, ...edicoesFormatadas]
     }
 
+    // LÓGICA DE DEDUPLICAÇÃO MELHORADA
     const vistos = new Set()
     const timelineUnica = timeline.filter((item) => {
-      const chave =
-        item.pdfNome ||
-        item.idUnicoAcao ||
-        JSON.stringify(item.alteracoes) ||
-        `${item.tipo}-${item.dataConclusao}-${item.responsavel}`
+      // Unifica todos os tipos de "recebimento" para não duplicar se caírem no mesmo dia
+      const tipoNormalizado = item.tipo.includes('recebimento') ? 'recebimento' : item.tipo
+      const dataCurta = (item.dataConclusao || item.data || '').slice(0, 10)
+
+      // Chave rigorosa de deduplicação
+      const chave = item.pdfNome || item.idUnicoAcao || `${tipoNormalizado}-${dataCurta}`
+
       if (vistos.has(chave)) return false
       vistos.add(chave)
       return true
@@ -458,20 +465,21 @@ const corEvento = (tipo) => {
 const abrirPdfServidor = (evento) => {
   if (!evento) return
 
-  // PDF da avaliação comercial (vendedor) → usa série no nome
+  console.log('Tentando abrir PDF para evento:', evento)
+
   if (evento.tipo === 'avaliacao_usada') {
     const serieBusca = evento.serie || resultado.value?.serie
-    if (!serieBusca) return
     const url = `${API_BASE_URL}/api/comercial/pdf/${encodeURIComponent(serieBusca)}`
     window.open(url, '_blank')
     return
   }
 
-  // PDFs do pós-venda (transferência, recebimento, edição)
-  const nome = evento.pdfNome
-  if (!nome) return
-  const url = `${API_BASE_URL}/api/pos-venda/pdf/${encodeURIComponent(nome)}`
-  window.open(url, '_blank')
+  if (evento.pdfNome) {
+    const url = `${API_BASE_URL}/api/geral/pdf/${encodeURIComponent(evento.pdfNome)}`
+    window.open(url, '_blank')
+  } else {
+    $q.notify({ type: 'warning', message: 'PDF não encontrado ou não gerado para esta etapa.' })
+  }
 }
 
 onMounted(async () => {

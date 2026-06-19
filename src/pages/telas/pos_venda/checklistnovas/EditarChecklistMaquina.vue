@@ -426,11 +426,23 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  Timestamp,
+  setDoc,
+  deleteDoc,
+} from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { db } from 'src/boot/firebase'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
-import { salvarEdicaoPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
+import {
+  salvarEdicaoPosVenda,
+  verificarStatusServidor,
+  atualizarSeriePdfServidor,
+} from 'src/utils/ServidorApi'
 import localforage from 'localforage'
 
 const $q = useQuasar()
@@ -808,29 +820,51 @@ const salvarEdicao = async () => {
       idUnicoAcao: `edicao-${Date.now()}`,
     })
 
-    const maquinaRef = doc(db, 'maquinas', serie.value)
-    const docSnap = await getDoc(maquinaRef)
-    const dadosAtuais = docSnap.data()
+    // AQUI COMEÇA A LÓGICA DE MIGRAÇÃO
+    const serieAntiga = formularioOriginal.value.serie
+    const serieNova = formulario.value.serie
+    const maquinaRefAntiga = doc(db, 'maquinas', serieAntiga)
 
-    const payloadFirebase = {
-      checklistEntrada: novoChecklist,
-      serie: formulario.value.serie || null,
-      modelo: formulario.value.modelo || null,
-      marca: formulario.value.marca || null,
-      ano: formulario.value.ano || null,
-      unidadeAtual: formulario.value.unidadeAtual || null,
-      horimetro: formulario.value.horimetro || null,
-      edicoesChecklist: [...(dadosAtuais.edicoesChecklist || []), registroEdicao],
-      historico: arrayUnion(itemHistorico),
-      ultimaAtualizacao: Timestamp.now(),
+    // Se a série mudou, fazemos a migração
+    if (serieAntiga !== serieNova) {
+      $q.loading.show({ message: 'Migrando dados para nova série...' })
+
+      const docSnapAntigo = await getDoc(maquinaRefAntiga)
+      const dadosAntigos = docSnapAntigo.exists() ? docSnapAntigo.data() : {}
+
+      // 1. Cria o novo documento com a série nova
+      await setDoc(doc(db, 'maquinas', serieNova), {
+        ...dadosAntigos,
+        ...formulario.value, // Atualiza com os novos dados do formulário
+        edicoesChecklist: [...(dadosAntigos.edicoesChecklist || []), registroEdicao],
+        historico: arrayUnion(itemHistorico),
+        ultimaAtualizacao: Timestamp.now(),
+      })
+
+      // 2. Deleta o antigo
+      await deleteDoc(maquinaRefAntiga)
+
+      // 3. Renomeia os PDFs no servidor local
+      try {
+        const servidorOnline = await verificarStatusServidor()
+        if (servidorOnline.online) {
+          await atualizarSeriePdfServidor(serieAntiga, serieNova)
+        }
+      } catch (e) {
+        console.warn('Erro ao renomear PDFs:', e)
+      }
+    } else {
+      // Se a série é a mesma, apenas atualiza
+      await updateDoc(maquinaRefAntiga, {
+        checklistEntrada: novoChecklist,
+        ...formulario.value,
+        edicoesChecklist: arrayUnion(registroEdicao),
+        historico: arrayUnion(itemHistorico),
+        ultimaAtualizacao: Timestamp.now(),
+      })
     }
 
-    await updateDoc(maquinaRef, payloadFirebase)
-
-    $q.notify({
-      type: 'positive',
-      message: 'Edição salva, PDF enviado e registrada no histórico com sucesso!',
-    })
+    $q.notify({ type: 'positive', message: 'Edição salva e série atualizada!' })
     router.back()
   } catch (e) {
     console.error('Erro ao salvar edição:', e)

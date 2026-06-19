@@ -772,6 +772,7 @@ const confirmarCarregamento = async () => {
     const nomeArquivoPDF = `${mq.serie}-carregamento-${Date.now()}`
 
     // 3. ENVIAR PARA O SERVIDOR LOCAL (Pasta da unidade de Origem)
+    // 3. ENVIAR PARA O SERVIDOR LOCAL (Pasta da unidade de Origem)
     try {
       const servidorOnline = await verificarStatusServidor()
       if (servidorOnline.online) {
@@ -793,14 +794,14 @@ const confirmarCarregamento = async () => {
       itensConferidos: { ...itensConferidos.value },
       nomeResponsavelCliente: nomeResponsavelCliente.value,
       cpfResponsavelCliente: cpfResponsavelCliente.value,
+
       // Guarda o nome do PDF gerado para depois buscar no histórico
       pdfCarregamentoNome: nomeArquivoPDF,
 
-      // OPTATIVO: Se não quiser salvar imagens base64 no Firebase para poupar espaço,
-      // basta remover as 3 linhas abaixo. Como o PDF já está no servidor, você não precisa delas aqui.
-      assinaturaMotoristaImagem: assinaturaMotoristaImagem.value,
-      assinaturaClienteImagem: assinaturaClienteImagem.value,
-      fotosCarregamento: fotosGerais.value,
+      // APAGAMOS a tentativa de salvar as imagens em base64 aqui!
+      // Vamos salvar apenas um aviso de que elas foram tiradas:
+      fotosForamTiradas: true,
+      assinaturasColetadas: true,
     })
 
     $q.notify({ type: 'positive', message: 'Carregamento confirmado e PDF gerado com sucesso!' })
