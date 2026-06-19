@@ -101,6 +101,8 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
   let tituloPdf = 'RELATÓRIO DE AVALIAÇÃO'
   if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
     tituloPdf = 'RECEBIMENTO DE FÁBRICA'
+  } else if (tipoPdf === 'recebimento_usada') {
+    tituloPdf = 'RECEBIMENTO NA UNIDADE'
   } else if (tipoPdf === 'transferencia_saida' || tipoPdf === 'transferencia') {
     tituloPdf = `TRANSFERÊNCIA: ${(formulario?.unidadeAtual || '').toUpperCase()} → ${(formulario?.unidadeDestino || formulario?.destino || '').toUpperCase()}`
   } else if (tipoPdf === 'recebimento_transferencia') {

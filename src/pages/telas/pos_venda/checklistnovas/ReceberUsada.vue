@@ -124,17 +124,17 @@
                   </span>
                 </q-item-label>
               </q-item-section>
-              <q-item-section side>
-                <q-select
+              <q-item-section side class="row items-center">
+                <q-checkbox
                   v-model="respostasRecebedor[idx]"
-                  :options="['BOM', 'RUIM', 'ATENÇÃO', 'OK', 'FALTA']"
-                  label="Recebimento"
+                  :true-value="true"
+                  :false-value="false"
                   dark
                   dense
-                  filled
                   color="orange-8"
-                  bg-color="grey-10"
-                  style="min-width: 120px"
+                  keep-color
+                  class="q-ma-none"
+                  :indeterminate="false"
                 />
               </q-item-section>
             </q-item>
@@ -154,34 +154,6 @@
         </q-list>
       </q-card>
 
-      <div class="text-subtitle2 text-grey-5 q-mb-sm">DADOS DO RECEBEDOR</div>
-      <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
-        <q-card-section class="q-gutter-y-sm">
-          <q-input
-            v-model="nomeRecebedor"
-            label="Nome Completo"
-            dark
-            filled
-            dense
-            color="orange-8"
-            bg-color="grey-10"
-          />
-          <q-input
-            v-model="cpfRecebedor"
-            label="CPF"
-            dark
-            filled
-            dense
-            color="orange-8"
-            bg-color="grey-10"
-            mask="###.###.###-##"
-            unmasked-value
-            :rules="[(val) => !val || validarCPF(val) || 'CPF inválido']"
-            lazy-rules
-          />
-        </q-card-section>
-      </q-card>
-
       <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs q-mt-lg">
         Assinatura do Responsável
       </div>
@@ -197,6 +169,7 @@
             </div>
             <q-badge
               :color="assinado ? 'green-8' : 'grey-8'"
+              :text-color="assinado ? 'white' : 'grey-4'"
               rounded
               class="q-px-sm q-py-xs text-weight-bold"
             >
@@ -204,14 +177,46 @@
               {{ assinado ? 'Assinado' : 'Pendente' }}
             </q-badge>
           </div>
+
+          <q-input
+            v-model="nomeRecebedor"
+            label="Nome completo digitado"
+            dark
+            filled
+            dense
+            color="orange-8"
+            bg-color="grey-9"
+            class="q-mb-md"
+          >
+            <template v-slot:prepend>
+              <q-icon name="edit_square" size="xs" color="grey-5" />
+            </template>
+          </q-input>
+
+          <q-input
+            v-model="nomeMotorista"
+            label="Nome do Motorista (opcional)"
+            dark
+            filled
+            dense
+            color="orange-8"
+            bg-color="grey-9"
+            class="q-mb-md"
+          >
+            <template v-slot:prepend>
+              <q-icon name="person_pin" size="xs" color="grey-5" />
+            </template>
+          </q-input>
+
           <q-btn
             :color="assinado ? 'grey-8' : 'orange-8'"
+            :text-color="assinado ? 'white' : 'black'"
             :icon="assinado ? 'draw' : 'gesture'"
             :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
             class="full-width text-weight-bold"
             unelevated
             style="border-radius: 6px"
-            @click="dialogAssinaturaAberto = true"
+            @click="abrirDialogAssinatura('responsavel')"
           />
         </q-card-section>
       </q-card>
@@ -238,19 +243,35 @@
                 />
                 <div>
                   <div class="text-h6 text-white" style="line-height: 1.2">
-                    Assinatura do Recebedor
+                    {{
+                      tipoAssinaturaAtual === 'motorista'
+                        ? 'Assinatura do Motorista'
+                        : 'Assinatura do Recebedor'
+                    }}
                   </div>
                   <div class="text-caption text-orange-8">Assine no espaço em branco abaixo</div>
                 </div>
               </div>
-              <q-btn
-                flat
-                round
-                dense
-                icon="close"
-                color="grey-5"
-                @click="dialogAssinaturaAberto = false"
-              />
+              <div class="row items-center">
+                <q-segment
+                  v-model="tipoAssinaturaAtual"
+                  dense
+                  rounded
+                  color="orange-8"
+                  text-color="white"
+                >
+                  <q-segment-item name="responsavel">Recebedor</q-segment-item>
+                  <q-segment-item name="motorista">Motorista</q-segment-item>
+                </q-segment>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  color="grey-5"
+                  @click="dialogAssinaturaAberto = false"
+                />
+              </div>
             </div>
           </q-card-section>
           <q-card-section class="col relative-position q-pa-md flex flex-center bg-grey-10">
@@ -348,14 +369,14 @@
         @click="confirmarRecebimento"
       />
       <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-        Verifique todos os itens, preencha nome, CPF válido e assine para confirmar
+        Verifique todos os itens, preencha nome completo e assine para confirmar
       </div>
     </div>
   </q-page>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import {
@@ -372,6 +393,8 @@ import {
 } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import localforage from 'localforage'
+import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
+import { salvarChecklistLogistica, verificarStatusServidor } from 'src/utils/ServidorApi'
 
 const $q = useQuasar()
 const route = useRoute()
@@ -384,9 +407,12 @@ const despachos = ref([])
 const respostasRecebedor = ref({})
 const observacoesRecebedor = ref({})
 const nomeRecebedor = ref('')
-const cpfRecebedor = ref('')
 const observacaoGeral = ref('')
 const assinado = ref(false)
+const tipoAssinaturaAtual = ref('responsavel')
+const assinaturaMotoristaImagem = ref(null)
+const assinadoMotorista = ref(false)
+const nomeMotorista = ref('')
 const salvando = ref(false)
 const minhaUnidade = ref('')
 
@@ -399,19 +425,15 @@ const dialogAssinaturaAberto = ref(false)
 
 const totalItens = computed(() => (checklistExibido.value || []).length)
 const itensVerificados = computed(() => {
-  return Object.values(respostasRecebedor.value).filter((v) => v && v !== '').length
+  return Object.values(respostasRecebedor.value).filter((v) => v === true).length
 })
 
 const podeConfirmar = computed(() => {
-  const docOk = validarCPF(cpfRecebedor.value)
   const nomeOk = nomeRecebedor.value.trim().length > 2
   const assinaOk = assinado.value
   const lista = checklistExibido.value || []
-  const todosRespondidos = lista.every((_, idx) => {
-    const r = (respostasRecebedor.value[idx] || '').toString().trim()
-    return r !== ''
-  })
-  return nomeOk && docOk && assinaOk && todosRespondidos
+  const todosRespondidos = lista.every((_, idx) => respostasRecebedor.value[idx] === true)
+  return nomeOk && assinaOk && todosRespondidos
 })
 
 const corStatus = (resposta) => {
@@ -449,24 +471,6 @@ const formatarData = (iso) => {
   } catch {
     return ''
   }
-}
-
-const validarCPF = (cpf) => {
-  if (!cpf) return false
-  const str = cpf.replace(/\D/g, '')
-  if (str.length !== 11 || /^(\d)\1{10}$/.test(str)) return false
-  let soma = 0,
-    resto
-  for (let i = 1; i <= 9; i++) soma += parseInt(str.substring(i - 1, i)) * (11 - i)
-  resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  if (resto !== parseInt(str.substring(9, 10))) return false
-  soma = 0
-  for (let i = 1; i <= 10; i++) soma += parseInt(str.substring(i - 1, i)) * (12 - i)
-  resto = (soma * 10) % 11
-  if (resto === 10 || resto === 11) resto = 0
-  if (resto !== parseInt(str.substring(10, 11))) return false
-  return true
 }
 
 // === MODO LISTA ===
@@ -526,6 +530,23 @@ const abrirFormulario = (d) => {
   // Muda para modo form sem mudar de rota (simula query param)
   modoForm.value = true
   despacho.value = d
+  respostasRecebedor.value = {}
+  observacoesRecebedor.value = {}
+  const itens = Array.isArray(d.checklistAvaliacao) ? d.checklistAvaliacao : []
+  itens.forEach((_, idx) => {
+    respostasRecebedor.value[idx] = false
+  })
+  // Inicializa nomes e assinaturas se vierem no despacho
+  nomeRecebedor.value = ''
+  nomeMotorista.value = d.motoristaNome || ''
+  assinaturaMotoristaImagem.value = d.motoristaImagem || null
+}
+
+const abrirDialogAssinatura = async (tipo = 'responsavel') => {
+  tipoAssinaturaAtual.value = tipo
+  dialogAssinaturaAberto.value = true
+  await nextTick()
+  initCanvas()
 }
 
 const initCanvas = async () => {
@@ -542,6 +563,27 @@ const initCanvas = async () => {
   ctx.lineWidth = 2.5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
+  // Se já existe uma assinatura para o tipo atual, desenha-a no canvas
+  const imgSrc =
+    tipoAssinaturaAtual.value === 'motorista'
+      ? assinaturaMotoristaImagem.value
+      : assinaturaImagem.value
+  if (imgSrc) {
+    const img = new Image()
+    img.onload = () => {
+      // limpar canvas e desenhar a assinatura existente
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // desenhar centrado e ajustado
+      ctx.drawImage(img, 0, 0, canvas.width / (ratio || 1), canvas.height / (ratio || 1))
+      // marcar como assinada localmente
+      if (tipoAssinaturaAtual.value === 'motorista') assinadoMotorista.value = true
+      else assinado.value = true
+    }
+    img.src = imgSrc
+  } else {
+    // canvas limpo
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
 }
 
 const getPosition = (e) => {
@@ -574,14 +616,33 @@ const stopDrawing = () => {
 }
 
 const confirmarAssinatura = () => {
+  if (tipoAssinaturaAtual.value === 'motorista') {
+    if (!assinado.value) {
+      $q.notify({ type: 'warning', message: 'Faça a assinatura do motorista antes de confirmar.' })
+      return
+    }
+    assinaturaMotoristaImagem.value = canvasRef.value.toDataURL('image/png')
+    assinadoMotorista.value = true
+    dialogAssinaturaAberto.value = false
+    $q.notify({ type: 'positive', message: 'Assinatura do motorista confirmada.' })
+    return
+  }
+
+  // assinatura do recebedor (padrão)
   if (!assinado.value) {
     $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
     return
   }
   assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
+  assinado.value = true
   dialogAssinaturaAberto.value = false
   $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
 }
+
+// Recarregar canvas ao trocar tipo de assinatura
+watch(tipoAssinaturaAtual, () => {
+  initCanvas()
+})
 
 const draw = (e) => {
   if (!isDrawing.value) return
@@ -593,44 +654,91 @@ const draw = (e) => {
   ctx.stroke()
   lastX = pos.x
   lastY = pos.y
-  assinado.value = true
+  if (tipoAssinaturaAtual.value === 'motorista') assinadoMotorista.value = true
+  else assinado.value = true
 }
 
 const limparAssinatura = () => {
   const ctx = canvasRef.value.getContext('2d')
   ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  assinado.value = false
-  assinaturaImagem.value = null
+  if (tipoAssinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = false
+    assinaturaMotoristaImagem.value = null
+  } else {
+    assinado.value = false
+    assinaturaImagem.value = null
+  }
 }
 
 const confirmarRecebimento = async () => {
-  if (!validarCPF(cpfRecebedor.value)) {
-    $q.notify({ type: 'negative', message: 'CPF inválido.' })
-    return
-  }
   salvando.value = true
   try {
+    $q.loading.show({ message: 'Finalizando recebimento...' })
     const d = despacho.value
     const serie = d.serie
 
-    await updateDoc(doc(db, 'despachos_usados', d.id), {
-      status: 'recebido',
-      dataRecebimento: Timestamp.now(),
-      recebidoPor: nomeRecebedor.value,
-      cpfRecebedor: cpfRecebedor.value,
-      checklistRecebimento: (checklistExibido.value || []).map((item, idx) => ({
-        texto: item.texto,
-        respostaVendedor: item.resposta,
-        respostaRecebedor: respostasRecebedor.value[idx] || '',
-        observacaoRecebedor: observacoesRecebedor.value[idx] || '',
-      })),
-      observacaoGeral: observacaoGeral.value,
-    })
+    // Gerar dados para PDF
+    const agora = new Date()
+    const dataHoraFormatada =
+      agora.toLocaleDateString('pt-BR') +
+      ' às ' +
+      agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
+    const dadosParaPdf = {
+      id: Date.now().toString(),
+      tipoPdf: 'recebimento_usada',
+      nomeMaquina: d.modelo,
+      dadosFormulario: {
+        serie: d.serie,
+        modelo: d.modelo,
+        marca: d.marca || '',
+        ano: d.ano || '',
+        unidadeOrigem: d.unidadeOrigem,
+        unidadeDestino: d.unidadeDestino,
+      },
+      respostasChecklist: (checklistExibido.value || []).map((item, idx) => ({
+        texto: item.texto,
+        resposta: respostasRecebedor.value[idx] === true ? 'OK' : 'FALTOU',
+        observacao: observacoesRecebedor.value[idx] || '',
+      })),
+      assinaturas: {
+        responsavelNome: nomeRecebedor.value,
+        responsavelImagem: assinaturaImagem.value,
+        // incluir dados do motorista quando disponíveis (prefere valores coletados localmente)
+        motoristaNome: nomeMotorista.value || d.motoristaNome || '',
+        motoristaImagem: assinaturaMotoristaImagem.value || d.motoristaImagem || null,
+      },
+      dataConclusao: agora.toLocaleDateString('pt-BR'),
+      dataHoraFormatada,
+      // Use unidade emissora (origem) para o cabeçalho do PDF
+      unidadeUsuario: d.unidadeOrigem || d.unidadeDestino,
+      observacaoGeral: observacaoGeral.value,
+    }
+
+    // Gerar PDF
+    const dadosLimpos = JSON.parse(JSON.stringify(toRaw(dadosParaPdf)))
+    const arquivoPdfBase64 = await gerarChecklistPdf(dadosLimpos, true)
+    const base64Limpo = arquivoPdfBase64.includes(',')
+      ? arquivoPdfBase64.split(',')[1]
+      : arquivoPdfBase64
+
+    // Obter número de ação
     const maquinaRef = doc(db, 'maquinas', serie)
     const maquinaSnap = await getDoc(maquinaRef)
     const historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
     const numeroAcao = historicoAtual.length + 1
+    const pdfNome = `${serie}-${numeroAcao}-recebimento-usada`
+
+    // Salvar PDF no servidor local se online
+    try {
+      const servidorOnline = await verificarStatusServidor()
+      if (servidorOnline.online) {
+        await salvarChecklistLogistica(d.unidadeDestino, pdfNome, base64Limpo)
+        console.log('✅ PDF de recebimento enviado ao servidor.')
+      }
+    } catch (errServidor) {
+      console.warn('Servidor local offline:', errServidor.message)
+    }
 
     const itemHistorico = {
       tipo: 'recebimento_usada',
@@ -639,45 +747,88 @@ const confirmarRecebimento = async () => {
       data: new Date().toISOString().slice(0, 10),
       responsavel: nomeRecebedor.value,
       numero: numeroAcao,
+      pdfNome: pdfNome,
       observacaoGeral: observacaoGeral.value,
       de: d.unidadeOrigem,
       para: d.unidadeDestino,
-      motorista: d.motoristaNome,
+      motorista: nomeMotorista.value || d.motoristaNome,
+      idUnicoAcao: dadosParaPdf.id,
     }
 
-    if (!maquinaSnap.exists()) {
-      await setDoc(maquinaRef, {
-        serie,
-        modelo: d.modelo,
-        marca: d.marca || '',
-        ano: d.ano || '',
-        horimetro: d.horimetro || '',
-        unidadeAtual: d.unidadeDestino,
-        status: 'recebida_usada',
-        origem: 'negociacao',
-        checklistEntrada: (checklistExibido.value || []).map((item, idx) => ({
-          texto: item.texto,
-          resposta: respostasRecebedor.value[idx] || item.resposta || '',
-          observacao: observacoesRecebedor.value[idx] || item.observacao || '-',
-        })),
-        historico: [itemHistorico],
-        ultimaAtualizacao: Timestamp.now(),
-        dataEntrada: Timestamp.now(),
-      })
-    } else {
-      await updateDoc(maquinaRef, {
-        status: 'recebida_usada',
-        unidadeAtual: d.unidadeDestino,
-        ultimaAtualizacao: Timestamp.now(),
-        historico: arrayUnion(itemHistorico),
-      })
-    }
-
-    await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
-      status: 'recebida',
+    const payloadFirebase = {
+      status: 'recebido',
       dataRecebimento: Timestamp.now(),
-      unidadeAtual: d.unidadeDestino,
-    })
+      recebidoPor: nomeRecebedor.value,
+      // Assinaturas e nomes: armazenamos nomes e imagens das assinaturas (base64) conforme solicitado
+      assinaturaRecebedor: assinaturaImagem.value || null,
+      motoristaNome: nomeMotorista.value || null,
+      assinaturaMotorista: assinaturaMotoristaImagem.value || null,
+      pdfRecebimentoNome: pdfNome,
+      checklistRecebimento: (checklistExibido.value || []).map((item, idx) => ({
+        texto: item.texto,
+        respostaVendedor: item.resposta,
+        respostaRecebedor: respostasRecebedor.value[idx] === true ? 'OK' : '',
+        observacaoRecebedor: observacoesRecebedor.value[idx] || '',
+      })),
+      observacaoGeral: observacaoGeral.value,
+    }
+
+    // Atualizar despacho
+    if (navigator.onLine) {
+      try {
+        console.log('Payload a ser enviado para despachos_usados:', payloadFirebase)
+        await updateDoc(doc(db, 'despachos_usados', d.id), payloadFirebase)
+        console.log('Payload salvo em despachos_usados com sucesso:', payloadFirebase)
+
+        // Atualizar máquina
+        if (!maquinaSnap.exists()) {
+          await setDoc(maquinaRef, {
+            serie,
+            modelo: d.modelo,
+            marca: d.marca || '',
+            ano: d.ano || '',
+            horimetro: d.horimetro || '',
+            unidadeAtual: d.unidadeDestino,
+            status: 'recebida_usada',
+            origem: 'negociacao',
+            checklistEntrada: (checklistExibido.value || []).map((item, idx) => ({
+              texto: item.texto,
+              resposta: respostasRecebedor.value[idx] === true ? 'OK' : item.resposta || '',
+              observacao: observacoesRecebedor.value[idx] || item.observacao || '-',
+            })),
+            historico: [itemHistorico],
+            ultimaAtualizacao: Timestamp.now(),
+            dataEntrada: Timestamp.now(),
+          })
+        } else {
+          const flagDuplicado = historicoAtual.some(
+            (h) => h.idUnicoAcao === itemHistorico.idUnicoAcao,
+          )
+          if (!flagDuplicado) {
+            await updateDoc(maquinaRef, {
+              status: 'recebida_usada',
+              unidadeAtual: d.unidadeDestino,
+              ultimaAtualizacao: Timestamp.now(),
+              historico: arrayUnion(itemHistorico),
+            })
+          }
+        }
+
+        // Atualizar avaliação
+        await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
+          status: 'recebida',
+          dataRecebimento: Timestamp.now(),
+          unidadeAtual: d.unidadeDestino,
+        })
+
+        console.log('✅ Recebimento gravado com sucesso online.')
+      } catch (fbError) {
+        console.warn('Falha ao gravar online, enfileirando operação...', fbError)
+        await empilharOperacaoOffline(serie, d.id, payloadFirebase, itemHistorico)
+      }
+    } else {
+      await empilharOperacaoOffline(serie, d.id, payloadFirebase, itemHistorico)
+    }
 
     $q.notify({ type: 'positive', message: 'Máquina recebida com sucesso!' })
     router.push('/inicio/pos-venda/maquinas')
@@ -685,8 +836,24 @@ const confirmarRecebimento = async () => {
     console.error('Erro ao confirmar recebimento:', e)
     $q.notify({ type: 'negative', message: 'Erro ao confirmar recebimento.' })
   } finally {
+    $q.loading.hide()
     salvando.value = false
   }
+}
+
+const empilharOperacaoOffline = async (serie, despachoCpfId, payloadMaquinas, itemHistorico) => {
+  const pendentes = (await localforage.getItem('firebase_pendentes')) || []
+  pendentes.push({
+    colecao: 'despachos_usados',
+    docId: despachoCpfId,
+    maquinaDocId: serie,
+    tipoDados: 'recebimento_usada',
+    dadosDespacho: payloadMaquinas,
+    historicoMaquina: itemHistorico,
+    criadoEm: new Date().toISOString(),
+  })
+  await localforage.setItem('firebase_pendentes', pendentes)
+  console.log('📦 Operação de recebimento enfileirada para sincronização posterior.')
 }
 
 const voltar = () => {
