@@ -28,11 +28,17 @@
           <div class="col-6">
             <q-input
               v-model="formulario.cidade"
-              label="Cidade"
+              label="Cidade *"
               dark
               outlined
               dense
               color="orange-8"
+              :rules="[
+                (val) =>
+                  (val && val.trim().length > 2) ||
+                  'Informe a cidade onde a máquina está localizada.',
+              ]"
+              lazy-rules
               @update:model-value="temAlteracoes = true"
             />
           </div>
@@ -892,6 +898,10 @@ const salvarChecklistNoTelemovel = async () => {
     $q.notify({ type: 'warning', message: 'Preenche o nome do cliente antes de salvar.' })
     return
   }
+  if (!formulario.value.cidade || formulario.value.cidade.trim().length < 3) {
+    $q.notify({ type: 'warning', message: 'Informe a cidade onde a máquina está localizada.' })
+    return
+  }
 
   if (!verificarFotosGerais()) return
 
@@ -1006,7 +1016,8 @@ const salvarChecklistNoTelemovel = async () => {
           ano: formulario.value.ano || '',
           horimetro: formulario.value.horimetro || '',
           cliente: formulario.value.cliente || '',
-          cidade: formulario.value.cidade || cidadeCadastro.value || '',
+          unidade: cidadeCadastro.value || '',
+          cidade: formulario.value.cidade || '',
           vendedor: nomeUsuarioCadastro.value || 'Desconhecido',
           dataAvaliacao: new Date().toISOString(),
           status: 'avaliada',

@@ -76,7 +76,7 @@
           </q-btn>
 
           <q-btn
-            v-if="props.row.status === 'em_estoque'"
+            v-if="props.row.status === 'em_estoque' && podeEditarChecklist"
             size="sm"
             flat
             round
@@ -85,6 +85,21 @@
             @click="editarChecklist(props.row)"
           >
             <q-tooltip class="bg-grey-9 text-orange-8">Editar Checklist</q-tooltip>
+          </q-btn>
+
+          <q-btn
+            v-if="
+              ['em_transito', 'despachada', 'carregado'].includes(props.row.status) &&
+              podeAlterarDestino
+            "
+            size="sm"
+            flat
+            round
+            icon="edit_location_alt"
+            color="orange-8"
+            @click="abrirAlterarDestino(props.row)"
+          >
+            <q-tooltip class="bg-grey-9 text-white">Alterar Destino</q-tooltip>
           </q-btn>
 
           <q-btn
@@ -110,16 +125,30 @@ import { getAuth } from 'firebase/auth'
 import { db } from 'src/boot/firebase'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
+import { useUnidades } from 'src/composables/useUnidades'
 import localforage from 'localforage'
 
 const $q = useQuasar()
 const router = useRouter()
+const { carregarUnidades: carregarUnidadesOptions } = useUnidades()
 const abaAtual = ref('todos')
 const maquinas = ref([])
 const carregando = ref(false)
 const unidadeUsuario = ref('')
 const perfisUsuario = ref([])
 const entregasLink = ref({})
+
+const podeEditarChecklist = computed(
+  () => perfisUsuario.value.includes('master') || perfisUsuario.value.includes('adm_pos_venda'),
+)
+
+const podeAlterarDestino = computed(
+  () => perfisUsuario.value.includes('master') || perfisUsuario.value.includes('gerente_comercial'),
+)
+
+const verTodasUnidades = computed(
+  () => perfisUsuario.value.includes('master') || perfisUsuario.value.includes('gerente_comercial'),
+)
 
 // Configuração das Colunas da Tabela
 const colunas = [
@@ -132,11 +161,13 @@ const colunas = [
 
 // Filtro de colunas baseado no perfil de acesso do usuário
 const colunasVisiveis = computed(() => {
-  if (perfisUsuario.value.includes('master') || perfisUsuario.value.includes('adm_pos_venda')) {
-    return colunas
-  }
-  // Vendedores ou técnicos comuns também visualizam o botão de histórico adicionado
-  return colunas
+  const temAlgumaAcao =
+    perfisUsuario.value.includes('master') ||
+    perfisUsuario.value.includes('adm_pos_venda') ||
+    perfisUsuario.value.includes('gerente_comercial')
+
+  if (temAlgumaAcao) return colunas
+  return colunas.filter((c) => c.name !== 'acoes')
 })
 
 const carregarLinksEntrega = async () => {
@@ -188,6 +219,13 @@ const editarChecklist = (maquina) => {
   })
 }
 
+const abrirAlterarDestino = (maquina) => {
+  router.push({
+    path: '/inicio/pos-venda/maquinas/transferir',
+    query: { serie: maquina.serie },
+  })
+}
+
 // Atalho útil para navegar direto para a linha do tempo da máquina (Melhoria #8 integrada)
 const verHistoricoSerie = (serie) => {
   router.push(`/inicio/pos-venda/maquinas/historico?serie=${encodeURIComponent(serie)}`)
@@ -195,7 +233,6 @@ const verHistoricoSerie = (serie) => {
 
 // Carrega os documentos cadastrados na coleção 'maquinas'
 const carregarMaquinas = async () => {
-  carregando.value = true
   try {
     const querySnapshot = await getDocs(collection(db, 'maquinas'))
     const lista = []
@@ -206,8 +243,6 @@ const carregarMaquinas = async () => {
   } catch (e) {
     console.error('Erro ao carregar máquinas:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar máquinas do Firebase.' })
-  } finally {
-    carregando.value = false
   }
 }
 
@@ -215,13 +250,22 @@ const carregarMaquinas = async () => {
 const maquinasFiltradas = computed(() => {
   let lista = maquinas.value
 
-  // Aplica o filtro de unidade com foco na regra unificada de Filiais
-  if (unidadeUsuario.value && unidadeUsuario.value !== 'master') {
+  // Aplica o filtro de unidade: apenas não-master veem apenas sua unidade
+  if (unidadeUsuario.value && !verTodasUnidades.value) {
     lista = lista.filter((m) => m.unidadeAtual === unidadeUsuario.value)
   }
 
   if (abaAtual.value === 'todos') return lista
-  return lista.filter((m) => m.status === abaAtual.value)
+
+  const statusPorAba = {
+    em_estoque: ['em_estoque', 'recebida_usada', 'disponivel'],
+    em_transito: ['em_transito', 'despachada', 'carregado'],
+    aguardando_entrega_cliente: ['aguardando_entrega_cliente'],
+    entregue: ['entregue'],
+  }
+
+  const statusValidos = statusPorAba[abaAtual.value] || [abaAtual.value]
+  return lista.filter((m) => statusValidos.includes(m.status))
 })
 
 // Tradutor amigável das strings armazenadas no banco
@@ -229,8 +273,12 @@ const formatarStatus = (status) =>
   ({
     em_estoque: 'Em Estoque',
     em_transito: 'Em Trânsito',
-    aguardando_entrega_cliente: 'Link Emitido / Pendente', // Nova Label!
+    aguardando_entrega_cliente: 'Link Emitido / Pendente',
     entregue: 'Entregue ao Cliente',
+    despachada: 'Despachada para Coleta',
+    carregado: 'Carregada - Em Trânsito',
+    recebida_usada: 'Recebida na Unidade',
+    disponivel: 'Disponível para Venda',
   })[status] || status
 
 // Gerenciador de Paleta de Cores Quasar
@@ -238,31 +286,44 @@ const corDoStatus = (status) =>
   ({
     em_estoque: 'positive',
     em_transito: 'warning',
-    aguardando_entrega_cliente: 'orange-8', // Nova Cor chamativa para a logística!
+    aguardando_entrega_cliente: 'orange-8',
     entregue: 'green-10',
+    despachada: 'orange-8',
+    carregado: 'warning',
+    recebida_usada: 'positive',
+    disponivel: 'green-10',
   })[status] || 'grey'
 
 // Inicialização e Validação de Sessão Unificada
 onMounted(async () => {
-  const sessao = await localforage.getItem('user_session')
-  perfisUsuario.value = sessao?.perfis || []
+  carregando.value = true
 
-  if (perfisUsuario.value.includes('master') || perfisUsuario.value.includes('gerente_comercial')) {
-    unidadeUsuario.value = 'master'
-  } else if (sessao && sessao.unidade) {
-    // Alinhamento Passo 2: Ignora 'cidade' e foca 100% na propriedade 'unidade' definida no Painel
-    unidadeUsuario.value = sessao.unidade
-  } else {
+  try {
     const user = getAuth().currentUser
+
     if (user) {
       const docSnap = await getDoc(doc(db, 'usuarios', user.uid))
       if (docSnap.exists()) {
-        unidadeUsuario.value = docSnap.data().unidade || ''
+        const dados = docSnap.data()
+        perfisUsuario.value = dados.perfis || []
+        unidadeUsuario.value = dados.unidade || ''
       }
     }
-  }
 
-  await carregarLinksEntrega()
-  await carregarMaquinas()
+    if (!perfisUsuario.value.length) {
+      const cache = (await localforage.getItem('user_session')) || {}
+      perfisUsuario.value = cache.perfis || []
+      unidadeUsuario.value = cache.unidade || ''
+    }
+
+    await carregarUnidadesOptions()
+    await carregarLinksEntrega()
+    await carregarMaquinas()
+  } catch (e) {
+    console.error('Erro na inicialização:', e)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar dados do usuário.' })
+  } finally {
+    carregando.value = false
+  }
 })
 </script>

@@ -110,7 +110,9 @@
                 </q-avatar>
               </div>
               <div class="col">
-                <div class="text-subtitle1 text-weight-bold text-orange-8">Despachar Usadas</div>
+                <div class="text-subtitle1 text-weight-bold text-orange-8">
+                  Programação de Coleta
+                </div>
                 <div class="text-caption text-grey-5 card-description">
                   Crie despachos de máquinas avaliadas para outras unidades.
                 </div>

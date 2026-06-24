@@ -57,10 +57,10 @@
           </div>
           <div class="q-ml-md col">
             <div class="text-subtitle1 text-weight-bold row items-center text-purple-4">
-              Carregar Usadas
+              Coletar Usadas
             </div>
             <div class="text-caption text-grey-5">
-              Máquinas de negociação para levar a outra unidade
+              Máquinas usadas para coletar na fazenda do cliente
             </div>
           </div>
           <q-icon name="chevron_right" color="grey-6" size="24px" />

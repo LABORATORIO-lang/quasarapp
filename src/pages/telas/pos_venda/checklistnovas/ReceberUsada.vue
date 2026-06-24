@@ -47,7 +47,7 @@
                 <div class="text-caption text-grey-5">Série: {{ d.serie }}</div>
                 <div class="text-caption text-grey-5 q-mt-xs">
                   <q-icon name="person" size="13px" color="grey-5" class="q-mr-xs" />
-                  Vendedor: {{ d.cliente || 'N/A' }}
+                  Cliente: {{ d.cliente || 'N/A' }}
                 </div>
                 <div class="text-caption text-grey-6 q-mt-xs">
                   <q-icon name="schedule" size="13px" color="grey-5" class="q-mr-xs" />
@@ -123,6 +123,10 @@
                     {{ item.observacao }}
                   </span>
                 </q-item-label>
+                <q-item-label v-if="item.obsMotorista" caption class="text-purple-4">
+                  <q-icon name="local_shipping" size="12px" class="q-mr-xs" />
+                  Motorista: {{ item.obsMotorista }}
+                </q-item-label>
               </q-item-section>
               <q-item-section side class="row items-center">
                 <q-checkbox
@@ -134,7 +138,6 @@
                   color="orange-8"
                   keep-color
                   class="q-ma-none"
-                  :indeterminate="false"
                 />
               </q-item-section>
             </q-item>
@@ -216,7 +219,7 @@
             class="full-width text-weight-bold"
             unelevated
             style="border-radius: 6px"
-            @click="abrirDialogAssinatura('responsavel')"
+            @click="dialogAssinaturaAberto = true"
           />
         </q-card-section>
       </q-card>
@@ -243,35 +246,19 @@
                 />
                 <div>
                   <div class="text-h6 text-white" style="line-height: 1.2">
-                    {{
-                      tipoAssinaturaAtual === 'motorista'
-                        ? 'Assinatura do Motorista'
-                        : 'Assinatura do Recebedor'
-                    }}
+                    Assinatura do Recebedor
                   </div>
                   <div class="text-caption text-orange-8">Assine no espaço em branco abaixo</div>
                 </div>
               </div>
-              <div class="row items-center">
-                <q-segment
-                  v-model="tipoAssinaturaAtual"
-                  dense
-                  rounded
-                  color="orange-8"
-                  text-color="white"
-                >
-                  <q-segment-item name="responsavel">Recebedor</q-segment-item>
-                  <q-segment-item name="motorista">Motorista</q-segment-item>
-                </q-segment>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="close"
-                  color="grey-5"
-                  @click="dialogAssinaturaAberto = false"
-                />
-              </div>
+              <q-btn
+                flat
+                round
+                dense
+                icon="close"
+                color="grey-5"
+                @click="dialogAssinaturaAberto = false"
+              />
             </div>
           </q-card-section>
           <q-card-section class="col relative-position q-pa-md flex flex-center bg-grey-10">
@@ -376,7 +363,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, toRaw, watch } from 'vue'
+import { ref, computed, onMounted, nextTick, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import {
@@ -409,9 +396,6 @@ const observacoesRecebedor = ref({})
 const nomeRecebedor = ref('')
 const observacaoGeral = ref('')
 const assinado = ref(false)
-const tipoAssinaturaAtual = ref('responsavel')
-const assinaturaMotoristaImagem = ref(null)
-const assinadoMotorista = ref(false)
 const nomeMotorista = ref('')
 const salvando = ref(false)
 const minhaUnidade = ref('')
@@ -475,7 +459,6 @@ const formatarData = (iso) => {
 
 // === MODO LISTA ===
 const carregarLista = async () => {
-  console.log('CARREGANDO LISTA para unidade:', minhaUnidade.value)
   carregando.value = true
   try {
     const sessao = await localforage.getItem('user_session')
@@ -485,14 +468,12 @@ const carregarLista = async () => {
       return
     }
 
-    const q = query(
-      collection(db, 'despachos_usados'),
-      where('status', '==', 'carregado'),
-      where('unidadeDestino', '==', minhaUnidade.value),
-    )
+    // Busca todos os carregados e filtra unidade no JS — evita índice composto
+    const q = query(collection(db, 'despachos_usados'), where('status', '==', 'carregado'))
     const snap = await getDocs(q)
-    despachos.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    console.log('DESPACHOS ENCONTRADOS:', despachos.value.length)
+    despachos.value = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((d) => d.unidadeDestino === minhaUnidade.value)
   } catch (e) {
     console.error('Erro ao carregar lista:', e)
     $q.notify({ type: 'negative', message: 'Erro ao carregar usadas.' })
@@ -527,7 +508,6 @@ const carregarDespacho = async (id) => {
 }
 
 const abrirFormulario = (d) => {
-  // Muda para modo form sem mudar de rota (simula query param)
   modoForm.value = true
   despacho.value = d
   respostasRecebedor.value = {}
@@ -536,19 +516,11 @@ const abrirFormulario = (d) => {
   itens.forEach((_, idx) => {
     respostasRecebedor.value[idx] = false
   })
-  // Inicializa nomes e assinaturas se vierem no despacho
   nomeRecebedor.value = ''
   nomeMotorista.value = d.motoristaNome || ''
-  assinaturaMotoristaImagem.value = d.motoristaImagem || null
 }
 
-const abrirDialogAssinatura = async (tipo = 'responsavel') => {
-  tipoAssinaturaAtual.value = tipo
-  dialogAssinaturaAberto.value = true
-  await nextTick()
-  initCanvas()
-}
-
+// Canvas
 const initCanvas = async () => {
   await nextTick()
   const canvas = canvasRef.value
@@ -563,27 +535,7 @@ const initCanvas = async () => {
   ctx.lineWidth = 2.5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  // Se já existe uma assinatura para o tipo atual, desenha-a no canvas
-  const imgSrc =
-    tipoAssinaturaAtual.value === 'motorista'
-      ? assinaturaMotoristaImagem.value
-      : assinaturaImagem.value
-  if (imgSrc) {
-    const img = new Image()
-    img.onload = () => {
-      // limpar canvas e desenhar a assinatura existente
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      // desenhar centrado e ajustado
-      ctx.drawImage(img, 0, 0, canvas.width / (ratio || 1), canvas.height / (ratio || 1))
-      // marcar como assinada localmente
-      if (tipoAssinaturaAtual.value === 'motorista') assinadoMotorista.value = true
-      else assinado.value = true
-    }
-    img.src = imgSrc
-  } else {
-    // canvas limpo
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-  }
+  ctx.clearRect(0, 0, rect.width, rect.height)
 }
 
 const getPosition = (e) => {
@@ -616,33 +568,14 @@ const stopDrawing = () => {
 }
 
 const confirmarAssinatura = () => {
-  if (tipoAssinaturaAtual.value === 'motorista') {
-    if (!assinado.value) {
-      $q.notify({ type: 'warning', message: 'Faça a assinatura do motorista antes de confirmar.' })
-      return
-    }
-    assinaturaMotoristaImagem.value = canvasRef.value.toDataURL('image/png')
-    assinadoMotorista.value = true
-    dialogAssinaturaAberto.value = false
-    $q.notify({ type: 'positive', message: 'Assinatura do motorista confirmada.' })
-    return
-  }
-
-  // assinatura do recebedor (padrão)
   if (!assinado.value) {
     $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
     return
   }
   assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
-  assinado.value = true
   dialogAssinaturaAberto.value = false
   $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
 }
-
-// Recarregar canvas ao trocar tipo de assinatura
-watch(tipoAssinaturaAtual, () => {
-  initCanvas()
-})
 
 const draw = (e) => {
   if (!isDrawing.value) return
@@ -654,20 +587,14 @@ const draw = (e) => {
   ctx.stroke()
   lastX = pos.x
   lastY = pos.y
-  if (tipoAssinaturaAtual.value === 'motorista') assinadoMotorista.value = true
-  else assinado.value = true
+  assinado.value = true
 }
 
 const limparAssinatura = () => {
   const ctx = canvasRef.value.getContext('2d')
   ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  if (tipoAssinaturaAtual.value === 'motorista') {
-    assinadoMotorista.value = false
-    assinaturaMotoristaImagem.value = null
-  } else {
-    assinado.value = false
-    assinaturaImagem.value = null
-  }
+  assinado.value = false
+  assinaturaImagem.value = null
 }
 
 const confirmarRecebimento = async () => {
@@ -677,7 +604,6 @@ const confirmarRecebimento = async () => {
     const d = despacho.value
     const serie = d.serie
 
-    // Gerar dados para PDF
     const agora = new Date()
     const dataHoraFormatada =
       agora.toLocaleDateString('pt-BR') +
@@ -695,6 +621,7 @@ const confirmarRecebimento = async () => {
         ano: d.ano || '',
         unidadeOrigem: d.unidadeOrigem,
         unidadeDestino: d.unidadeDestino,
+        unidadeAtual: d.unidadeDestino || '',
       },
       respostasChecklist: (checklistExibido.value || []).map((item, idx) => ({
         texto: item.texto,
@@ -704,32 +631,27 @@ const confirmarRecebimento = async () => {
       assinaturas: {
         responsavelNome: nomeRecebedor.value,
         responsavelImagem: assinaturaImagem.value,
-        // incluir dados do motorista quando disponíveis (prefere valores coletados localmente)
         motoristaNome: nomeMotorista.value || d.motoristaNome || '',
-        motoristaImagem: assinaturaMotoristaImagem.value || d.motoristaImagem || null,
+        motoristaImagem: d.motoristaImagem || null,
       },
       dataConclusao: agora.toLocaleDateString('pt-BR'),
       dataHoraFormatada,
-      // Use unidade emissora (origem) para o cabeçalho do PDF
-      unidadeUsuario: d.unidadeOrigem || d.unidadeDestino,
+      unidadeUsuario: d.unidadeDestino,
       observacaoGeral: observacaoGeral.value,
     }
 
-    // Gerar PDF
     const dadosLimpos = JSON.parse(JSON.stringify(toRaw(dadosParaPdf)))
     const arquivoPdfBase64 = await gerarChecklistPdf(dadosLimpos, true)
     const base64Limpo = arquivoPdfBase64.includes(',')
       ? arquivoPdfBase64.split(',')[1]
       : arquivoPdfBase64
 
-    // Obter número de ação
     const maquinaRef = doc(db, 'maquinas', serie)
     const maquinaSnap = await getDoc(maquinaRef)
     const historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
     const numeroAcao = historicoAtual.length + 1
     const pdfNome = `${serie}-${numeroAcao}-recebimento-usada`
 
-    // Salvar PDF no servidor local se online
     try {
       const servidorOnline = await verificarStatusServidor()
       if (servidorOnline.online) {
@@ -741,7 +663,7 @@ const confirmarRecebimento = async () => {
     }
 
     const itemHistorico = {
-      tipo: 'recebimento_usada',
+      tipo: 'coleta_usada_negociacao',
       cliente: d.cliente || '',
       unidade: d.unidadeDestino,
       data: new Date().toISOString().slice(0, 10),
@@ -755,14 +677,18 @@ const confirmarRecebimento = async () => {
       idUnicoAcao: dadosParaPdf.id,
     }
 
+    const checklistFinal = (checklistExibido.value || []).map((item, idx) => ({
+      texto: item.texto,
+      resposta: respostasRecebedor.value[idx] === true ? 'OK' : item.resposta || '',
+      observacao: observacoesRecebedor.value[idx] || item.observacao || '-',
+    }))
+
     const payloadFirebase = {
       status: 'recebido',
       dataRecebimento: Timestamp.now(),
       recebidoPor: nomeRecebedor.value,
-      // Assinaturas e nomes: armazenamos nomes e imagens das assinaturas (base64) conforme solicitado
       assinaturaRecebedor: assinaturaImagem.value || null,
       motoristaNome: nomeMotorista.value || null,
-      assinaturaMotorista: assinaturaMotoristaImagem.value || null,
       pdfRecebimentoNome: pdfNome,
       checklistRecebimento: (checklistExibido.value || []).map((item, idx) => ({
         texto: item.texto,
@@ -773,62 +699,41 @@ const confirmarRecebimento = async () => {
       observacaoGeral: observacaoGeral.value,
     }
 
-    // Atualizar despacho
-    if (navigator.onLine) {
-      try {
-        console.log('Payload a ser enviado para despachos_usados:', payloadFirebase)
-        await updateDoc(doc(db, 'despachos_usados', d.id), payloadFirebase)
-        console.log('Payload salvo em despachos_usados com sucesso:', payloadFirebase)
+    await updateDoc(doc(db, 'despachos_usados', d.id), payloadFirebase)
 
-        // Atualizar máquina
-        if (!maquinaSnap.exists()) {
-          await setDoc(maquinaRef, {
-            serie,
-            modelo: d.modelo,
-            marca: d.marca || '',
-            ano: d.ano || '',
-            horimetro: d.horimetro || '',
-            unidadeAtual: d.unidadeDestino,
-            status: 'recebida_usada',
-            origem: 'negociacao',
-            checklistEntrada: (checklistExibido.value || []).map((item, idx) => ({
-              texto: item.texto,
-              resposta: respostasRecebedor.value[idx] === true ? 'OK' : item.resposta || '',
-              observacao: observacoesRecebedor.value[idx] || item.observacao || '-',
-            })),
-            historico: [itemHistorico],
-            ultimaAtualizacao: Timestamp.now(),
-            dataEntrada: Timestamp.now(),
-          })
-        } else {
-          const flagDuplicado = historicoAtual.some(
-            (h) => h.idUnicoAcao === itemHistorico.idUnicoAcao,
-          )
-          if (!flagDuplicado) {
-            await updateDoc(maquinaRef, {
-              status: 'recebida_usada',
-              unidadeAtual: d.unidadeDestino,
-              ultimaAtualizacao: Timestamp.now(),
-              historico: arrayUnion(itemHistorico),
-            })
-          }
-        }
-
-        // Atualizar avaliação
-        await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
-          status: 'recebida',
-          dataRecebimento: Timestamp.now(),
-          unidadeAtual: d.unidadeDestino,
-        })
-
-        console.log('✅ Recebimento gravado com sucesso online.')
-      } catch (fbError) {
-        console.warn('Falha ao gravar online, enfileirando operação...', fbError)
-        await empilharOperacaoOffline(serie, d.id, payloadFirebase, itemHistorico)
-      }
+    if (!maquinaSnap.exists()) {
+      await setDoc(maquinaRef, {
+        serie,
+        modelo: d.modelo,
+        marca: d.marca || '',
+        ano: d.ano || '',
+        horimetro: d.horimetro || '',
+        unidadeAtual: d.unidadeDestino,
+        status: 'recebida_usada',
+        origem: 'negociacao',
+        checklistEntrada: checklistFinal,
+        historico: [itemHistorico],
+        ultimaAtualizacao: Timestamp.now(),
+        dataEntrada: Timestamp.now(),
+      })
     } else {
-      await empilharOperacaoOffline(serie, d.id, payloadFirebase, itemHistorico)
+      const flagDuplicado = historicoAtual.some((h) => h.idUnicoAcao === itemHistorico.idUnicoAcao)
+      if (!flagDuplicado) {
+        await updateDoc(maquinaRef, {
+          status: 'recebida_usada',
+          unidadeAtual: d.unidadeDestino,
+          checklistEntrada: checklistFinal,
+          ultimaAtualizacao: Timestamp.now(),
+          historico: arrayUnion(itemHistorico),
+        })
+      }
     }
+
+    await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
+      status: 'recebida',
+      dataRecebimento: Timestamp.now(),
+      unidadeAtual: d.unidadeDestino,
+    })
 
     $q.notify({ type: 'positive', message: 'Máquina recebida com sucesso!' })
     router.push('/inicio/pos-venda/maquinas')
@@ -839,21 +744,6 @@ const confirmarRecebimento = async () => {
     $q.loading.hide()
     salvando.value = false
   }
-}
-
-const empilharOperacaoOffline = async (serie, despachoCpfId, payloadMaquinas, itemHistorico) => {
-  const pendentes = (await localforage.getItem('firebase_pendentes')) || []
-  pendentes.push({
-    colecao: 'despachos_usados',
-    docId: despachoCpfId,
-    maquinaDocId: serie,
-    tipoDados: 'recebimento_usada',
-    dadosDespacho: payloadMaquinas,
-    historicoMaquina: itemHistorico,
-    criadoEm: new Date().toISOString(),
-  })
-  await localforage.setItem('firebase_pendentes', pendentes)
-  console.log('📦 Operação de recebimento enfileirada para sincronização posterior.')
 }
 
 const voltar = () => {
@@ -869,7 +759,6 @@ const voltar = () => {
 
 onMounted(async () => {
   const id = route.query.id
-  console.log('ReceberUsada MONTADO. ID:', id)
   if (id) {
     modoForm.value = true
     await carregarDespacho(id)

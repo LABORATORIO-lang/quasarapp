@@ -103,6 +103,8 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
     tituloPdf = 'RECEBIMENTO DE FÁBRICA'
   } else if (tipoPdf === 'recebimento_usada') {
     tituloPdf = 'RECEBIMENTO NA UNIDADE'
+  } else if (tipoPdf === 'coleta_usada_negociacao') {
+    tituloPdf = 'COLETA DE MÁQUINA USADA (NEGOCIAÇÃO)'
   } else if (tipoPdf === 'transferencia_saida' || tipoPdf === 'transferencia') {
     tituloPdf = `TRANSFERÊNCIA: ${(formulario?.unidadeAtual || '').toUpperCase()} → ${(formulario?.unidadeDestino || formulario?.destino || '').toUpperCase()}`
   } else if (tipoPdf === 'recebimento_transferencia') {
@@ -272,7 +274,10 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
           {
             width: '45%',
             stack: [
-              ...(!modoPosVenda || tipoPdf === 'venda' || tipoPdf === 'entrega_cliente'
+              ...(!modoPosVenda ||
+              tipoPdf === 'venda' ||
+              tipoPdf === 'entrega_cliente' ||
+              tipoPdf === 'coleta_usada_negociacao'
                 ? [
                     { text: 'CLIENTE', style: 'label' },
                     { text: formulario?.cliente || '-', style: 'value', alignment: 'left' },
@@ -346,9 +351,20 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
           {
             width: '45%',
             stack: [
-              { text: 'UNIDADE EMISSORA / CIDADE', style: 'label' },
               {
-                text: formulario?.unidadeAtual || formulario?.cidade || '-',
+                text:
+                  tipoPdf === 'recebimento_usada'
+                    ? 'UNIDADE RECEPTORA'
+                    : tipoPdf === 'coleta_usada_negociacao'
+                      ? 'LOCAL DE COLETA'
+                      : 'UNIDADE EMISSORA / CIDADE',
+                style: 'label',
+              },
+              {
+                text:
+                  tipoPdf === 'coleta_usada_negociacao'
+                    ? formulario?.unidadeOrigem || formulario?.cliente || 'FAZENDA DO CLIENTE'
+                    : formulario?.unidadeAtual || formulario?.cidade || '-',
                 style: 'value',
                 alignment: 'left',
               },

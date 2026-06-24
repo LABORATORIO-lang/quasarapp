@@ -4,8 +4,8 @@
       <div class="row items-center q-gutter-sm">
         <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
         <div>
-          <div class="text-h5 text-weight-bold">Carregar Usada</div>
-          <div class="text-caption text-grey-5">Máquinas de negociação para transporte</div>
+          <div class="text-h5 text-weight-bold">Coletar Usada</div>
+          <div class="text-caption text-grey-5">Coleta de máquina usada na fazenda do cliente</div>
         </div>
       </div>
     </div>
@@ -16,8 +16,8 @@
 
     <div v-else-if="despachos.length === 0" class="flex flex-center column q-py-xl text-center">
       <q-icon name="check_circle" size="72px" color="green-7" class="q-mb-md" />
-      <div class="text-h6 text-grey-5 q-mb-sm">Nenhum despacho pendente</div>
-      <div class="text-body2 text-grey-6">Você não tem máquinas para carregar no momento.</div>
+      <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma coleta pendente</div>
+      <div class="text-body2 text-grey-6">Você não tem máquinas para coletar no momento.</div>
     </div>
 
     <div v-else class="q-gutter-md">
@@ -48,7 +48,7 @@
                 rounded
                 class="q-px-sm q-py-xs text-white text-weight-bold q-mb-sm"
               >
-                Aguardando Carga
+                Aguardando Coleta
               </q-badge>
               <div class="text-caption text-grey-5" style="font-size: 11px">
                 Origem: {{ d.unidadeOrigem }}
@@ -69,7 +69,7 @@
             color="purple-6"
             text-color="white"
             icon="local_shipping"
-            label="Iniciar Carga"
+            label="Iniciar Coleta"
             @click="abrirCarga(d)"
           />
         </q-card-actions>
@@ -128,7 +128,7 @@
       <q-card class="bg-grey-10 text-white column full-height">
         <q-card-section class="col-shrink bg-grey-9 row items-center shadow-2">
           <div>
-            <div class="text-h6 text-orange-8">Confirmar Carregamento</div>
+            <div class="text-h6 text-orange-8">Confirmar Coleta</div>
             <div class="text-caption text-white">
               {{ maquinaSelecionada?.modelo }} — {{ maquinaSelecionada?.serie }}
             </div>
@@ -142,7 +142,7 @@
         </q-card-section>
 
         <q-card-section class="col q-pa-md scroll">
-          <div class="text-subtitle2 text-grey-5 q-mb-sm">FOTOS DO CARREGAMENTO (OBRIGATÓRIO)</div>
+          <div class="text-subtitle2 text-grey-5 q-mb-sm">FOTOS DA COLETA (OBRIGATÓRIO)</div>
           <q-card
             class="bg-grey-9 shadow-3 q-mb-lg"
             style="border-radius: 12px; border: 1px solid #424242"
@@ -342,7 +342,7 @@
             color="green-7"
             text-color="white"
             icon="check_circle"
-            label="Confirmar Carregamento e Gerar PDF"
+            label="Confirmar Coleta e Gerar PDF"
             class="full-width"
             size="lg"
             :loading="salvando"
@@ -731,25 +731,27 @@ const confirmarCarregamento = async () => {
     // O seu pdfGenerator.js costuma ler 'dadosFormulario', 'respostasChecklist', 'assinaturas', etc.
     const dadosParaPdf = {
       id: mq.id,
-      tipoPdf: 'carregamento_motorista',
+      tipoPdf: 'coleta_usada_negociacao', // ← tipo novo
       nomeMaquina: mq.modelo,
       dadosFormulario: {
         serie: mq.serie,
+        modelo: mq.modelo || '',
         marca: mq.marca || '',
         ano: mq.ano || '',
-        cliente: nomeResponsavelCliente.value,
-        unidadeOrigem: mq.unidadeOrigem,
-        unidadeDestino: mq.unidadeDestino,
+        horimetro: mq.horimetro || '',
+        cliente: mq.cliente || nomeResponsavelCliente.value || '',
+        cidade: mq.cidade || '',
+        unidadeOrigem: mq.unidadeOrigem || '', // ← fazenda/cliente
+        unidadeDestino: mq.unidadeDestino || '', // ← unidade que recebe
+        unidadeAtual: mq.unidadeDestino || '', // ← para logo/saída
       },
-      // Passamos apenas os itens que o motorista viu e conferiu
       respostasChecklist: itensObrigatorios.value.map((item) => ({
         texto: item.texto,
         resposta: itensConferidos.value[item.originalIndex] ? 'CONFERIDO' : 'FALTOU',
         observacao: observacoesMotorista.value[item.originalIndex] || '',
       })),
       assinaturas: {
-        // Adaptamos as chaves para baterem com o PDF (responsavel/motorista)
-        responsavelNome: nomeResponsavelCliente.value,
+        responsavelNome: nomeResponsavelCliente.value, // quem entregou a máquina no campo
         responsavelCpf: cpfResponsavelCliente.value,
         responsavelImagem: assinaturaClienteImagem.value,
         motoristaNome: mq.motoristaNome || 'Motorista',
@@ -761,7 +763,7 @@ const confirmarCarregamento = async () => {
         agora.toLocaleDateString('pt-BR') +
         ' às ' +
         agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      unidadeUsuario: mq.unidadeOrigem, // Para a logo correta
+      unidadeUsuario: mq.unidadeDestino || '', // ← logo da unidade receptora
     }
 
     // 2. GERAR O PDF EM BASE64
@@ -769,7 +771,7 @@ const confirmarCarregamento = async () => {
     const base64Limpo = arquivoPdfBase64.includes(',')
       ? arquivoPdfBase64.split(',')[1]
       : arquivoPdfBase64
-    const nomeArquivoPDF = `${mq.serie}-carregamento-${Date.now()}`
+    const nomeArquivoPDF = `${mq.serie}-coleta-usada-${Date.now()}`
 
     // 3. ENVIAR PARA O SERVIDOR LOCAL (Pasta da unidade de Origem)
     // 3. ENVIAR PARA O SERVIDOR LOCAL (Pasta da unidade de Origem)
@@ -778,7 +780,7 @@ const confirmarCarregamento = async () => {
       if (servidorOnline.online) {
         // Você precisará ter essa função no ServidorApi.js (Pode ser idêntica a salvarChecklistPosVenda)
         await salvarChecklistLogistica(mq.unidadeOrigem, nomeArquivoPDF, base64Limpo)
-        console.log('✅ PDF de carregamento enviado ao servidor.')
+        console.log('✅ PDF de coleta enviado ao servidor.')
       }
     } catch (errServidor) {
       console.warn('Servidor local offline:', errServidor.message)
@@ -796,7 +798,7 @@ const confirmarCarregamento = async () => {
       cpfResponsavelCliente: cpfResponsavelCliente.value,
 
       // Guarda o nome do PDF gerado para depois buscar no histórico
-      pdfCarregamentoNome: nomeArquivoPDF,
+      pdfColetaNome: nomeArquivoPDF,
 
       // APAGAMOS a tentativa de salvar as imagens em base64 aqui!
       // Vamos salvar apenas um aviso de que elas foram tiradas:
@@ -804,12 +806,12 @@ const confirmarCarregamento = async () => {
       assinaturasColetadas: true,
     })
 
-    $q.notify({ type: 'positive', message: 'Carregamento confirmado e PDF gerado com sucesso!' })
+    $q.notify({ type: 'positive', message: 'Coleta confirmada e PDF gerado com sucesso!' })
     dialogCargaAberto.value = false
     await buscarDespachos()
   } catch (e) {
-    console.error('Erro ao confirmar carregamento:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao confirmar carregamento.' })
+    console.error('Erro ao confirmar coleta:', e)
+    $q.notify({ type: 'negative', message: 'Erro ao confirmar coleta.' })
   } finally {
     salvando.value = false
   }
