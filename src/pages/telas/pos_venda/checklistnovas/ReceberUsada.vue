@@ -157,6 +157,7 @@
         </q-list>
       </q-card>
 
+      <!-- Assinatura do Recebedor -->
       <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs q-mt-lg">
         Assinatura do Responsável
       </div>
@@ -196,9 +197,55 @@
             </template>
           </q-input>
 
+          <q-btn
+            :color="assinado ? 'grey-8' : 'orange-8'"
+            :text-color="assinado ? 'white' : 'black'"
+            :icon="assinado ? 'draw' : 'gesture'"
+            :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+            class="full-width text-weight-bold"
+            unelevated
+            style="border-radius: 6px"
+            @click="abrirDialogoAssinatura('recebedor')"
+          />
+        </q-card-section>
+      </q-card>
+
+      <!-- Assinatura do Motorista -->
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs q-mt-lg">
+        Assinatura do Motorista
+      </div>
+      <q-card
+        class="bg-grey-10"
+        style="border-radius: 8px; border: 1px solid #555"
+        :style="
+          assinadoMotorista
+            ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)'
+            : ''
+        "
+      >
+        <q-card-section class="q-pa-md">
+          <div class="flex justify-between items-center q-mb-md">
+            <div class="text-subtitle2 text-weight-bold text-white flex items-center">
+              <q-icon name="local_shipping" class="q-mr-sm text-orange-8" size="sm" /> Motorista
+            </div>
+            <q-badge
+              :color="assinadoMotorista ? 'green-8' : 'grey-8'"
+              :text-color="assinadoMotorista ? 'white' : 'grey-4'"
+              rounded
+              class="q-px-sm q-py-xs text-weight-bold"
+            >
+              <q-icon
+                :name="assinadoMotorista ? 'check_circle' : 'pending'"
+                class="q-mr-xs"
+                size="14px"
+              />
+              {{ assinadoMotorista ? 'Assinado' : 'Pendente' }}
+            </q-badge>
+          </div>
+
           <q-input
             v-model="nomeMotorista"
-            label="Nome do Motorista (opcional)"
+            label="Nome do Motorista"
             dark
             filled
             dense
@@ -212,14 +259,14 @@
           </q-input>
 
           <q-btn
-            :color="assinado ? 'grey-8' : 'orange-8'"
-            :text-color="assinado ? 'white' : 'black'"
-            :icon="assinado ? 'draw' : 'gesture'"
-            :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+            :color="assinadoMotorista ? 'grey-8' : 'orange-8'"
+            :text-color="assinadoMotorista ? 'white' : 'black'"
+            :icon="assinadoMotorista ? 'draw' : 'gesture'"
+            :label="assinadoMotorista ? 'Refazer Assinatura' : 'Coletar Assinatura'"
             class="full-width text-weight-bold"
             unelevated
             style="border-radius: 6px"
-            @click="dialogAssinaturaAberto = true"
+            @click="abrirDialogoAssinatura('motorista')"
           />
         </q-card-section>
       </q-card>
@@ -246,7 +293,7 @@
                 />
                 <div>
                   <div class="text-h6 text-white" style="line-height: 1.2">
-                    Assinatura do Recebedor
+                    Assinatura do {{ assinaturaAtual === 'motorista' ? 'Motorista' : 'Recebedor' }}
                   </div>
                   <div class="text-caption text-orange-8">Assine no espaço em branco abaixo</div>
                 </div>
@@ -261,6 +308,7 @@
               />
             </div>
           </q-card-section>
+
           <q-card-section class="col relative-position q-pa-md flex flex-center bg-grey-10">
             <div
               class="signature-container bg-white fit shadow-5"
@@ -303,6 +351,7 @@
               </q-btn>
             </div>
           </q-card-section>
+
           <q-card-section class="col-shrink row q-col-gutter-md bg-grey-9 shadow-up-2">
             <div class="col-6">
               <q-btn
@@ -356,7 +405,7 @@
         @click="confirmarRecebimento"
       />
       <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-        Verifique todos os itens, preencha nome completo e assine para confirmar
+        Verifique todos os itens, preencha os nomes e as duas assinaturas para confirmar
       </div>
     </div>
   </q-page>
@@ -396,6 +445,7 @@ const observacoesRecebedor = ref({})
 const nomeRecebedor = ref('')
 const observacaoGeral = ref('')
 const assinado = ref(false)
+const assinadoMotorista = ref(false)
 const nomeMotorista = ref('')
 const salvando = ref(false)
 const minhaUnidade = ref('')
@@ -405,7 +455,9 @@ const isDrawing = ref(false)
 let lastX = 0
 let lastY = 0
 const assinaturaImagem = ref(null)
+const assinaturaImagemMotorista = ref(null)
 const dialogAssinaturaAberto = ref(false)
+const assinaturaAtual = ref('recebedor')
 
 const totalItens = computed(() => (checklistExibido.value || []).length)
 const itensVerificados = computed(() => {
@@ -414,10 +466,12 @@ const itensVerificados = computed(() => {
 
 const podeConfirmar = computed(() => {
   const nomeOk = nomeRecebedor.value.trim().length > 2
+  const nomeMotoristaOk = nomeMotorista.value.trim().length > 2
   const assinaOk = assinado.value
+  const assinaMotoristaOk = assinadoMotorista.value
   const lista = checklistExibido.value || []
   const todosRespondidos = lista.every((_, idx) => respostasRecebedor.value[idx] === true)
-  return nomeOk && assinaOk && todosRespondidos
+  return nomeOk && nomeMotoristaOk && assinaOk && assinaMotoristaOk && todosRespondidos
 })
 
 const corStatus = (resposta) => {
@@ -457,7 +511,6 @@ const formatarData = (iso) => {
   }
 }
 
-// === MODO LISTA ===
 const carregarLista = async () => {
   carregando.value = true
   try {
@@ -468,7 +521,6 @@ const carregarLista = async () => {
       return
     }
 
-    // Busca todos os carregados e filtra unidade no JS — evita índice composto
     const q = query(collection(db, 'despachos_usados'), where('status', '==', 'carregado'))
     const snap = await getDocs(q)
     despachos.value = snap.docs
@@ -482,7 +534,6 @@ const carregarLista = async () => {
   }
 }
 
-// === MODO FORM ===
 const carregarDespacho = async (id) => {
   carregando.value = true
   try {
@@ -520,7 +571,11 @@ const abrirFormulario = (d) => {
   nomeMotorista.value = d.motoristaNome || ''
 }
 
-// Canvas
+const abrirDialogoAssinatura = (quem) => {
+  assinaturaAtual.value = quem
+  dialogAssinaturaAberto.value = true
+}
+
 const initCanvas = async () => {
   await nextTick()
   const canvas = canvasRef.value
@@ -568,11 +623,21 @@ const stopDrawing = () => {
 }
 
 const confirmarAssinatura = () => {
-  if (!assinado.value) {
+  if (!assinado.value && assinaturaAtual.value === 'recebedor') {
     $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
     return
   }
-  assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
+  if (!assinadoMotorista.value && assinaturaAtual.value === 'motorista') {
+    $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
+    return
+  }
+
+  if (assinaturaAtual.value === 'motorista') {
+    assinaturaImagemMotorista.value = canvasRef.value.toDataURL('image/png')
+  } else {
+    assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
+  }
+
   dialogAssinaturaAberto.value = false
   $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
 }
@@ -587,14 +652,24 @@ const draw = (e) => {
   ctx.stroke()
   lastX = pos.x
   lastY = pos.y
-  assinado.value = true
+
+  if (assinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = true
+  } else {
+    assinado.value = true
+  }
 }
 
 const limparAssinatura = () => {
   const ctx = canvasRef.value.getContext('2d')
   ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  assinado.value = false
-  assinaturaImagem.value = null
+  if (assinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = false
+    assinaturaImagemMotorista.value = null
+  } else {
+    assinado.value = false
+    assinaturaImagem.value = null
+  }
 }
 
 const confirmarRecebimento = async () => {
@@ -619,9 +694,11 @@ const confirmarRecebimento = async () => {
         modelo: d.modelo,
         marca: d.marca || '',
         ano: d.ano || '',
+        horimetro: d.horimetro || '',
         unidadeOrigem: d.unidadeOrigem,
         unidadeDestino: d.unidadeDestino,
         unidadeAtual: d.unidadeDestino || '',
+        cidade: d.unidadeDestino || '',
       },
       respostasChecklist: (checklistExibido.value || []).map((item, idx) => ({
         texto: item.texto,
@@ -632,7 +709,7 @@ const confirmarRecebimento = async () => {
         responsavelNome: nomeRecebedor.value,
         responsavelImagem: assinaturaImagem.value,
         motoristaNome: nomeMotorista.value || d.motoristaNome || '',
-        motoristaImagem: d.motoristaImagem || null,
+        motoristaImagem: assinaturaImagemMotorista.value,
       },
       dataConclusao: agora.toLocaleDateString('pt-BR'),
       dataHoraFormatada,
@@ -688,6 +765,7 @@ const confirmarRecebimento = async () => {
       dataRecebimento: Timestamp.now(),
       recebidoPor: nomeRecebedor.value,
       assinaturaRecebedor: assinaturaImagem.value || null,
+      assinaturaMotorista: assinaturaImagemMotorista.value || null,
       motoristaNome: nomeMotorista.value || null,
       pdfRecebimentoNome: pdfNome,
       checklistRecebimento: (checklistExibido.value || []).map((item, idx) => ({
@@ -709,7 +787,7 @@ const confirmarRecebimento = async () => {
         ano: d.ano || '',
         horimetro: d.horimetro || '',
         unidadeAtual: d.unidadeDestino,
-        status: 'recebida_usada',
+        status: 'em_estoque',
         origem: 'negociacao',
         checklistEntrada: checklistFinal,
         historico: [itemHistorico],
@@ -720,7 +798,7 @@ const confirmarRecebimento = async () => {
       const flagDuplicado = historicoAtual.some((h) => h.idUnicoAcao === itemHistorico.idUnicoAcao)
       if (!flagDuplicado) {
         await updateDoc(maquinaRef, {
-          status: 'recebida_usada',
+          status: 'em_estoque',
           unidadeAtual: d.unidadeDestino,
           checklistEntrada: checklistFinal,
           ultimaAtualizacao: Timestamp.now(),
@@ -730,7 +808,7 @@ const confirmarRecebimento = async () => {
     }
 
     await updateDoc(doc(db, 'avaliacoes_usadas', serie), {
-      status: 'recebida',
+      status: 'recebido',
       dataRecebimento: Timestamp.now(),
       unidadeAtual: d.unidadeDestino,
     })

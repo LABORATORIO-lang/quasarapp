@@ -107,7 +107,7 @@ const perfisUsuario = ref([])
 // Mapa de permissões por perfil
 const permissoes = {
   tecnico: ['starpes', 'calculo_plantio'],
-  adm_pos_venda: ['pos_venda', 'maquinas', 'logistica'],
+  adm_pos_venda: ['pos_venda', 'maquinas'],
   vendedor: ['comercial', 'consorcio', 'usados'],
   gerente_comercial: ['admin', 'comercial'],
   gerente_pos_venda: ['admin', 'pos_venda', 'starpes'],

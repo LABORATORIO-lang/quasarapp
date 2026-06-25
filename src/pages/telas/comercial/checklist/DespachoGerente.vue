@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-lg text-white bg-grey-10">
     <!-- Cabeçalho -->
-    <div class="row items-center justify-between q-mb-xl q-col-gutter-sm">
+    <div class="row items-center justify-between q-mb-md q-col-gutter-sm">
       <div class="row items-center q-gutter-sm">
         <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
         <div>
@@ -23,84 +23,119 @@
       <div class="text-body2 text-grey-6">Apenas master e gerente comercial.</div>
     </div>
 
-    <!-- Lista vazia -->
-    <div v-else-if="avaliacoes.length === 0" class="flex flex-center column q-py-xl text-center">
-      <q-icon name="pending_actions" size="72px" color="grey-7" class="q-mb-md" />
-      <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma avaliação encontrada</div>
-      <div class="text-body2 text-grey-6">Não há máquinas avaliadas na sua unidade no momento.</div>
-    </div>
-
-    <!-- Lista de avaliações -->
-    <div v-else class="q-gutter-md">
-      <q-card
-        v-for="av in avaliacoes"
-        :key="av.serie"
-        class="bg-grey-9 text-white"
-        style="border-radius: 12px; border: 1px solid #424242"
+    <!-- Abas e pesquisa -->
+    <div v-else>
+      <q-tabs
+        v-model="abaAtual"
+        dense
+        class="text-grey"
+        active-color="orange-8"
+        indicator-color="orange-8"
+        align="left"
       >
-        <q-card-section class="q-pb-sm">
-          <div class="row items-start justify-between no-wrap">
-            <div class="col">
-              <div class="text-h6 text-weight-bold text-orange-8">{{ av.modelo }}</div>
-              <div class="text-caption text-grey-5">Série: {{ av.serie }}</div>
-              <div class="text-caption text-grey-5 q-mt-xs">
-                <q-icon name="person" size="13px" color="grey-5" class="q-mr-xs" />
-                Vendedor: {{ av.vendedor }} — Cliente: {{ av.cliente }}
-              </div>
-              <div class="text-caption text-grey-5 q-mt-xs">
-                <q-icon name="place" size="13px" color="grey-5" class="q-mr-xs" />
-                Unidade: {{ av.unidade || 'Não informada' }}
-              </div>
-              <div class="text-caption text-grey-6 q-mt-xs">
-                <q-icon name="schedule" size="13px" color="grey-5" class="q-mr-xs" />
-                Avaliado em {{ formatarData(av.dataAvaliacao) }}
-              </div>
+        <q-tab name="aguardando" label="Aguardando Coleta" />
+        <q-tab name="programada" label="Coleta Programada" />
+        <q-tab name="recebidas" label="Recebidas" />
+      </q-tabs>
+      <q-separator color="grey-8" class="q-mb-md" />
 
-              <!-- Status do despacho -->
-              <div v-if="av.status !== 'avaliada'" class="q-mt-sm">
-                <div class="text-caption text-grey-5">Coleta programada para:</div>
-                <div class="text-caption text-orange-4">
-                  <q-icon name="local_shipping" size="13px" class="q-mr-xs" />
-                  {{ av.motoristaNome || 'Não informado' }} →
-                  {{ av.unidadeDestino || 'Não informada' }}
+      <q-input
+        v-model="termoPesquisa"
+        label="Pesquisar por série ou cliente"
+        dark
+        outlined
+        dense
+        color="orange-8"
+        class="q-mb-md"
+        clearable
+      >
+        <template v-slot:append>
+          <q-icon name="search" color="orange-8" />
+        </template>
+      </q-input>
+
+      <!-- Lista vazia -->
+      <div
+        v-if="avaliacoesFiltradas.length === 0"
+        class="flex flex-center column q-py-xl text-center"
+      >
+        <q-icon name="pending_actions" size="72px" color="grey-7" class="q-mb-md" />
+        <div class="text-h6 text-grey-5 q-mb-sm">Nenhuma avaliação encontrada</div>
+        <div class="text-body2 text-grey-6">Não há máquinas nesta situação no momento.</div>
+      </div>
+
+      <!-- Lista de avaliações -->
+      <div v-else class="q-gutter-md">
+        <q-card
+          v-for="av in avaliacoesFiltradas"
+          :key="av.serie"
+          class="bg-grey-9 text-white"
+          style="border-radius: 12px; border: 1px solid #424242"
+        >
+          <q-card-section class="q-pb-sm">
+            <div class="row items-start justify-between no-wrap">
+              <div class="col">
+                <div class="text-h6 text-weight-bold text-orange-8">{{ av.modelo }}</div>
+                <div class="text-caption text-grey-5">Série: {{ av.serie }}</div>
+                <div class="text-caption text-grey-5 q-mt-xs">
+                  <q-icon name="person" size="13px" color="grey-5" class="q-mr-xs" />
+                  Vendedor: {{ av.vendedor }} — Cliente: {{ av.cliente }}
+                </div>
+                <div class="text-caption text-grey-5 q-mt-xs">
+                  <q-icon name="place" size="13px" color="grey-5" class="q-mr-xs" />
+                  Unidade: {{ av.unidade || 'Não informada' }}
+                </div>
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  <q-icon name="schedule" size="13px" color="grey-5" class="q-mr-xs" />
+                  Avaliado em {{ formatarData(av.dataAvaliacao) }}
+                </div>
+
+                <!-- Status do despacho -->
+                <div v-if="av.status !== 'avaliada'" class="q-mt-sm">
+                  <div class="text-caption text-grey-5">Coleta programada para:</div>
+                  <div class="text-caption text-orange-4">
+                    <q-icon name="local_shipping" size="13px" class="q-mr-xs" />
+                    {{ av.motoristaNome || 'Não informado' }} →
+                    {{ av.unidadeDestino || 'Não informada' }}
+                  </div>
                 </div>
               </div>
+
+              <div class="col-auto q-ml-sm">
+                <q-badge
+                  :color="corStatus(av.status)"
+                  text-color="white"
+                  rounded
+                  class="q-px-sm q-py-xs"
+                >
+                  {{ labelStatus(av.status) }}
+                </q-badge>
+              </div>
             </div>
+          </q-card-section>
 
-            <div class="col-auto q-ml-sm">
-              <q-badge
-                :color="corStatus(av.status)"
-                text-color="white"
-                rounded
-                class="q-px-sm q-py-xs"
-              >
-                {{ labelStatus(av.status) }}
-              </q-badge>
-            </div>
-          </div>
-        </q-card-section>
+          <q-separator color="grey-8" />
 
-        <q-separator color="grey-8" />
-
-        <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
-          <q-btn
-            v-if="av.status === 'avaliada'"
-            flat
-            color="orange-8"
-            icon="local_shipping"
-            label="Programar Coleta"
-            @click="abrirDialogoDespacho(av)"
-          />
-          <q-btn
-            v-else-if="av.status === 'despachada'"
-            flat
-            color="orange-8"
-            icon="edit"
-            label="Alterar Coleta"
-            @click="abrirDialogoDespacho(av, true)"
-          />
-        </q-card-actions>
-      </q-card>
+          <q-card-actions align="right" class="bg-grey-10 q-pa-sm">
+            <q-btn
+              v-if="av.status === 'avaliada'"
+              flat
+              color="orange-8"
+              icon="local_shipping"
+              label="Programar Coleta"
+              @click="abrirDialogoDespacho(av)"
+            />
+            <q-btn
+              v-else-if="av.status === 'despachada' || av.status === 'carregado'"
+              flat
+              color="orange-8"
+              icon="edit"
+              label="Alterar Coleta"
+              @click="abrirDialogoDespacho(av, true)"
+            />
+          </q-card-actions>
+        </q-card>
+      </div>
     </div>
 
     <!-- Dialog de Despacho -->
@@ -186,7 +221,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
 import {
   collection,
@@ -198,6 +233,7 @@ import {
   updateDoc,
   doc,
   Timestamp,
+  onSnapshot,
 } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
@@ -215,6 +251,10 @@ const maquinaSelecionada = ref(null)
 const modoEdicao = ref(false)
 const salvando = ref(false)
 const despachoAtualId = ref(null)
+const abaAtual = ref('aguardando')
+const termoPesquisa = ref('')
+
+let unsubscribeAvaliacoes = null
 
 const despacho = ref({
   unidadeDestino: '',
@@ -259,6 +299,14 @@ const getGrupoUnidade = (cidade) => {
   return c
 }
 
+const normalizarTexto = (texto) => {
+  return (texto || '')
+    .toString()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
 const verificarAcesso = async () => {
   const sessao = (await localforage.getItem('user_session')) || {}
   const perfis = sessao.perfis || []
@@ -300,24 +348,62 @@ const buscarMotoristas = async () => {
   }
 }
 
+const avaliacoesFiltradas = computed(() => {
+  const mapa = {
+    aguardando: ['avaliada'],
+    programada: ['despachada', 'carregado'],
+    recebidas: ['recebido'],
+  }
+
+  const statusPermitidos = mapa[abaAtual.value] || []
+  const termo = normalizarTexto(termoPesquisa.value)
+
+  return avaliacoes.value.filter((av) => {
+    const statusOk = statusPermitidos.includes(av.status)
+    if (!statusOk) return false
+
+    if (!termo) return true
+
+    const serie = normalizarTexto(av.serie)
+    const cliente = normalizarTexto(av.cliente)
+
+    return serie.includes(termo) || cliente.includes(termo)
+  })
+})
+
 const buscarAvaliacoes = async (userCidade) => {
   carregando.value = true
-  try {
-    const userGrupo = getGrupoUnidade(userCidade)
 
-    const snap = await getDocs(collection(db, 'avaliacoes_usadas'))
-    const todas = snap.docs.map((d) => d.data())
+  const userGrupo = getGrupoUnidade(userCidade)
 
-    avaliacoes.value = todas.filter((av) => {
-      const grupoAv = getGrupoUnidade(av.unidade)
-      return grupoAv === userGrupo && ['avaliada', 'despachada'].includes(av.status)
-    })
-  } catch (e) {
-    console.error('Erro ao buscar avaliações:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao carregar avaliações.' })
-  } finally {
-    carregando.value = false
+  if (unsubscribeAvaliacoes) {
+    unsubscribeAvaliacoes()
+    unsubscribeAvaliacoes = null
   }
+
+  const q = collection(db, 'avaliacoes_usadas')
+
+  unsubscribeAvaliacoes = onSnapshot(
+    q,
+    (snap) => {
+      const todas = snap.docs.map((d) => d.data())
+
+      avaliacoes.value = todas.filter((av) => {
+        const grupoAv = getGrupoUnidade(av.unidade)
+        return (
+          grupoAv === userGrupo &&
+          ['avaliada', 'despachada', 'carregado', 'recebido'].includes(av.status)
+        )
+      })
+
+      carregando.value = false
+    },
+    (e) => {
+      console.error('Erro ao buscar avaliações:', e)
+      $q.notify({ type: 'negative', message: 'Erro ao carregar avaliações.' })
+      carregando.value = false
+    },
+  )
 }
 
 const abrirDialogoDespacho = (maquina, edicao = false) => {
@@ -345,6 +431,16 @@ const confirmarDespacho = async () => {
   }
   if (!despacho.value.motorista) {
     $q.notify({ type: 'warning', message: 'Selecione o motorista.' })
+    return
+  }
+  const av = maquinaSelecionada.value
+
+  if (av.status === 'recebido') {
+    $q.notify({
+      type: 'warning',
+      message: 'Máquina já entregue na unidade. Não é possível alterar o destino.',
+    })
+    salvando.value = false
     return
   }
 
@@ -412,7 +508,6 @@ const confirmarDespacho = async () => {
     }
 
     dialogDespachoAberto.value = false
-    await buscarAvaliacoes(av.cidade)
   } catch (e) {
     console.error('Erro ao salvar coleta:', e)
     $q.notify({ type: 'negative', message: 'Erro ao salvar coleta.' })
@@ -450,7 +545,6 @@ const cancelarDespacho = async () => {
 
       $q.notify({ type: 'positive', message: 'Coleta cancelada.' })
       dialogDespachoAberto.value = false
-      await buscarAvaliacoes(av.cidade)
     } catch (e) {
       console.error('Erro ao cancelar despacho:', e)
       $q.notify({ type: 'negative', message: 'Erro ao cancelar coleta.' })
@@ -466,6 +560,13 @@ onMounted(async () => {
   await buscarMotoristas()
   if (temAcesso.value) {
     await buscarAvaliacoes(cidade)
+  }
+})
+
+onUnmounted(() => {
+  if (unsubscribeAvaliacoes) {
+    unsubscribeAvaliacoes()
+    unsubscribeAvaliacoes = null
   }
 })
 </script>

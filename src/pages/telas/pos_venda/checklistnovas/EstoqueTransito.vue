@@ -172,8 +172,14 @@ const colunasVisiveis = computed(() => {
 
 const carregarLinksEntrega = async () => {
   try {
+    if (!unidadeUsuario.value) return
+
     const snap = await getDocs(
-      query(collection(db, 'entregas_cliente'), where('status', '==', 'pendente')),
+      query(
+        collection(db, 'entregas_cliente'),
+        where('status', '==', 'pendente'),
+        where('unidade', '==', unidadeUsuario.value),
+      ),
     )
     const map = {}
     snap.forEach((docSnap) => {

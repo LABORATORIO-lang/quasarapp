@@ -806,6 +806,11 @@ const confirmarCarregamento = async () => {
       assinaturasColetadas: true,
     })
 
+    await updateDoc(doc(db, 'avaliacoes_usadas', mq.serie), {
+      status: 'carregado',
+      dataCarregamento: Timestamp.now(),
+    })
+
     $q.notify({ type: 'positive', message: 'Coleta confirmada e PDF gerado com sucesso!' })
     dialogCargaAberto.value = false
     await buscarDespachos()

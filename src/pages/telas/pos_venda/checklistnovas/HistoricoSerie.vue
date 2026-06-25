@@ -281,7 +281,7 @@ const pesquisarSerie = async (serieParam = null) => {
             unidadeAtual: dp.unidadeOrigem || '',
             motorista: dp.motoristaNome || '',
             // PUXANDO O NOME DO PDF DO CARREGAMENTO AQUI:
-            pdfNome: dp.pdfCarregamentoNome || null,
+            pdfNome: dp.pdfColetaNome || null,
           })
         }
 
@@ -461,19 +461,42 @@ const corEvento = (tipo) => {
   }
   return map[tipo] || 'grey'
 }
-
 const abrirPdfServidor = (evento) => {
   if (!evento) return
 
   console.log('Tentando abrir PDF para evento:', evento)
 
+  const serieBusca = evento.serie || resultado.value?.serie
+
+  // Avaliação original do vendedor: abre pela série
   if (evento.tipo === 'avaliacao_usada') {
-    const serieBusca = evento.serie || resultado.value?.serie
     const url = `${API_BASE_URL}/api/comercial/pdf/${encodeURIComponent(serieBusca)}`
     window.open(url, '_blank')
     return
   }
+  if (evento.tipo === 'entrega_cliente' && evento.pdfNome) {
+    const url = `${API_BASE_URL}/api/geral/pdf/${encodeURIComponent(evento.pdfNome)}`
+    window.open(url, '_blank')
+    return
+  }
+  // Carregamento e recebimento: se tiver o nome do PDF específico, abre direto pelo nome
+  if (
+    (evento.tipo === 'carregamento_usada' || evento.tipo === 'recebimento_usada') &&
+    evento.pdfNome
+  ) {
+    const url = `${API_BASE_URL}/api/geral/pdf/${encodeURIComponent(evento.pdfNome)}`
+    window.open(url, '_blank')
+    return
+  }
 
+  // Fallback: tenta abrir pela rota de série
+  if (evento.tipo === 'carregamento_usada' || evento.tipo === 'recebimento_usada') {
+    const url = `${API_BASE_URL}/api/logistica/coleta/${encodeURIComponent(serieBusca)}`
+    window.open(url, '_blank')
+    return
+  }
+
+  // Outros eventos com pdfNome genérico
   if (evento.pdfNome) {
     const url = `${API_BASE_URL}/api/geral/pdf/${encodeURIComponent(evento.pdfNome)}`
     window.open(url, '_blank')

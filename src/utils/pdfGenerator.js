@@ -132,12 +132,23 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
   )
 
   // Identifica a unidade do usuário (priorizando o cadastro)
+  const normalizar = (texto) =>
+    (texto || '')
+      .toString()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+
   const unidadeUsuario = dadosDaTela.unidadeUsuario || formulario?.unidadeAtual || ''
 
-  // Escolhe a logo baseada na unidade
-  const logoEscolhida = unidadeUsuario.toLowerCase().includes('agro reforma')
-    ? logoAgroReformas
-    : logoTimbrado
+  const unidadeNormalizada = normalizar(unidadeUsuario)
+  const logoEscolhida =
+    unidadeNormalizada.includes('agro reforma') || unidadeNormalizada === 'agro reformas'
+      ? logoAgroReformas
+      : logoTimbrado
 
   let logoBase64 = null
   try {
@@ -364,7 +375,10 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
                 text:
                   tipoPdf === 'coleta_usada_negociacao'
                     ? formulario?.unidadeOrigem || formulario?.cliente || 'FAZENDA DO CLIENTE'
-                    : formulario?.unidadeAtual || formulario?.cidade || '-',
+                    : formulario?.unidadeDestino ||
+                      formulario?.unidadeAtual ||
+                      formulario?.cidade ||
+                      '-',
                 style: 'value',
                 alignment: 'left',
               },

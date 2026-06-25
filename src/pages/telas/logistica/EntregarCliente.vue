@@ -29,19 +29,25 @@
           <div class="row items-center q-gutter-xs q-mb-xs">
             <q-icon name="local_shipping" color="orange-8" size="sm" />
             <span class="text-subtitle1 text-weight-bold text-orange-8">
-              {{ ent.modelo }}
+              {{ ent.modelo || 'Máquina sem modelo' }}
             </span>
           </div>
+
           <div class="text-caption text-grey-4">Série: {{ ent.serie }}</div>
+
+          <div class="text-caption text-grey-4 q-mt-xs">
+            Status: <span class="text-weight-bold text-positive">CARREGADA</span>
+          </div>
+
           <div class="text-caption text-grey-5 q-mt-xs">
             <q-icon name="person" size="xs" class="q-mr-xs" />
-            Cliente: {{ ent.cliente }}
+            Cliente: {{ ent.cliente || 'Não informado' }}
           </div>
-          <div class="text-caption text-grey-5">
+
+          <div v-if="ent.endereco" class="text-caption text-grey-5 q-mt-xs">
             <q-icon name="place" size="xs" class="q-mr-xs" />
-            Endereço: {{ ent.endereco || 'Não informado' }}
+            Endereço: {{ ent.endereco }}
           </div>
-          <div class="text-caption text-grey-6 q-mt-xs">Venda em: {{ formatarData(ent.data) }}</div>
         </q-card-section>
 
         <q-card-actions class="q-px-md q-pb-md">
@@ -59,81 +65,66 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 import { getAuth } from 'firebase/auth'
 import { useRouter } from 'vue-router'
 import localforage from 'localforage'
 
-const router = useRouter()
 const $q = useQuasar()
+const router = useRouter()
 
 const entregas = ref([])
 const carregando = ref(false)
+let unsubscribe = null
 
 const carregarEntregas = async () => {
   carregando.value = true
-  try {
-    const user = getAuth().currentUser
-    if (!user) return
 
-    const q = query(
-      collection(db, 'notificacoes'),
-      where('tipo', '==', 'entrega_cliente'),
-      where('motoristaUid', '==', user.uid),
-      where('lida', '==', false),
-    )
-    const snapshot = await getDocs(q)
-
-    const lista = []
-    snapshot.forEach((docSnap) => {
-      lista.push({ id: docSnap.id, ...docSnap.data(), processando: false })
-    })
-    lista.sort((a, b) => {
-      const ta = a.criadaEm?.seconds || 0
-      const tb = b.criadaEm?.seconds || 0
-      return tb - ta
-    })
-    entregas.value = lista
-  } catch (e) {
-    console.error('Erro ao carregar entregas:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao carregar entregas pendentes.' })
-  } finally {
+  const user = getAuth().currentUser
+  if (!user) {
     carregando.value = false
+    return
   }
+
+  const q = query(
+    collection(db, 'notificacoes'),
+    where('tipo', '==', 'entrega_cliente'),
+    where('motoristaUid', '==', user.uid),
+    where('lida', '==', false),
+  )
+
+  unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const lista = []
+      snapshot.forEach((docSnap) => {
+        lista.push({
+          id: docSnap.id,
+          ...docSnap.data(),
+          processando: false,
+        })
+      })
+
+      entregas.value = lista
+      carregando.value = false
+    },
+    (e) => {
+      console.error('Erro ao carregar entregas:', e)
+      $q.notify({ type: 'negative', message: 'Erro ao carregar entregas pendentes.' })
+      carregando.value = false
+    },
+  )
 }
 
 const iniciarEntrega = async (ent) => {
   ent.processando = true
   try {
-    const maquinaSnap = await getDoc(doc(db, 'maquinas', ent.serie))
-    const dadosMaquina = maquinaSnap.exists() ? maquinaSnap.data() : {}
-    console.log(
-      'Dados salvos no localforage:',
-      await localforage.getItem('entrega_cliente_pendente'),
-    )
-    await localforage.setItem(
-      'entrega_cliente_pendente',
-      JSON.parse(
-        JSON.stringify({
-          serie: ent.serie,
-          modelo: ent.modelo,
-          marca: dadosMaquina.marca || '',
-          ano: dadosMaquina.ano || '',
-          horimetro: dadosMaquina.horimetro || '',
-          cliente: ent.cliente,
-          endereco: ent.endereco || '',
-          cpfCnpj: ent.cpfCnpj || '',
-          notificacaoId: ent.id,
-          checklistEntrada: ent.checklistEntrada || dadosMaquina.checklistEntrada || [],
-        }),
-      ),
-    )
-
+    await localforage.setItem('entrega_cliente_pendente', JSON.parse(JSON.stringify(ent)))
     router.push({
-      path: '/inicio/pos-venda/checklist/formulario/recebimento',
+      path: '/inicio/logistica/confirmar-entrega',
       query: {
         modo: 'entrega_cliente',
         serie: ent.serie,
@@ -145,17 +136,15 @@ const iniciarEntrega = async (ent) => {
     })
   } catch (e) {
     console.error('Erro ao iniciar entrega:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao carregar dados da máquina.' })
+    $q.notify({ type: 'negative', message: 'Erro ao iniciar entrega.' })
   } finally {
     ent.processando = false
   }
 }
 
-const formatarData = (dataStr) => {
-  if (!dataStr) return ''
-  const d = new Date(dataStr)
-  return d.toLocaleDateString('pt-BR')
-}
-
 onMounted(carregarEntregas)
+
+onUnmounted(() => {
+  if (unsubscribe) unsubscribe()
+})
 </script>

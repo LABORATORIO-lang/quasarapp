@@ -765,11 +765,11 @@ const confirmarRecebimento = async () => {
           observacao: observacoesCliente.value[index] || item.observacao || '-',
         })),
         assinaturas: {
-          responsavelNome: dados.value.motorista || 'Motorista Terceirizado',
-          responsavelImagem: null, // Motorista de frete terceiro não assina no tablet de origem
-          motoristaNome: nomeRecebedor.value,
-          motoristaImagem: assinaturaImagem.value, // Assinatura digital colhida do cliente
-          motoristaCpf: docLimpo, // Passa o CPF/CNPJ para o PDF
+          responsavelNome: nomeRecebedor.value, // recebedor/cliente
+          responsavelImagem: assinaturaImagem.value, // assinatura do cliente
+          responsavelCpf: docLimpo, // CPF do recebedor
+          motoristaNome: dados.value.motorista || 'Motorista Terceirizado',
+          motoristaImagem: null, // Passa o CPF/CNPJ para o PDF
         },
         dataConclusao: new Date().toISOString(),
         dataHoraFormatada:

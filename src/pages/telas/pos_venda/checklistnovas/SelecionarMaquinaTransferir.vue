@@ -409,9 +409,9 @@
                   </q-input>
 
                   <q-input
-                    v-if="item.key === 'motorista'"
+                    v-if="item.key === 'motorista' && tipoFrete === 'terceiro'"
                     v-model="assinaturas[item.key + 'Cpf']"
-                    label="CPF (Obrigatório)"
+                    label="CPF do Motorista Terceiro"
                     dark
                     filled
                     dense
@@ -582,9 +582,11 @@ const podeConfirmar = computed(() => {
   if (!assinaturas.value.responsavelNome || !assinaturas.value.responsavelImagem) return false
   if (!assinaturas.value.motoristaNome || !assinaturas.value.motoristaImagem) return false
 
-  // Validação flexível do CPF: aceita com ou sem máscara (mínimo 11 dígitos)
-  const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
-  if (cpfLimpo.length < 11) return false
+  // CPF obrigatório apenas para motorista terceiro
+  if (tipoTransferencia.value === 'cliente' && tipoFrete.value === 'terceiro') {
+    const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
+    if (cpfLimpo.length < 11) return false
+  }
 
   if (tipoTransferencia.value === 'cliente') return nomeCliente.value.trim() !== ''
   return destino.value !== ''
@@ -957,7 +959,7 @@ const confirmarTransferencia = async () => {
             horimetro: maquinaSelecionada.value.horimetro || '',
             cliente: nomeCliente.value,
             endereco: assinaturas.value.enderecoCliente || '',
-            cpfCnpj: assinaturas.value.motoristaCpf || '',
+            cpfCnpj: tipoFrete.value === 'terceiro' ? assinaturas.value.motoristaCpf || '' : '',
             unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
             checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
             motorista: motoristaFinal,
@@ -995,7 +997,7 @@ const confirmarTransferencia = async () => {
             de: maquinaSelecionada.value.unidadeAtual,
             cliente: nomeCliente.value,
             endereco: assinaturas.value.enderecoCliente || '',
-            cpfCnpj: assinaturas.value.motoristaCpf || '',
+            cpfCnpj: tipoFrete.value === 'terceiro' ? assinaturas.value.motoristaCpf || '' : '',
             data: dataHoje,
             lida: false,
             criadaEm: Timestamp.now(),

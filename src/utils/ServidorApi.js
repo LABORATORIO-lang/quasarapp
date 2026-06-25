@@ -152,13 +152,13 @@ export async function uploadPdfParaServidor(pdfBase64, filename, tipo = 'checkli
 }
 // ... dentro do seu ServidorApi.js ...
 
-export async function salvarChecklistLogistica(motorista, pdfNome, pdfBase64) {
+export async function salvarChecklistLogistica(unidade, pdfNome, pdfBase64) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/logistica/carregamento`, {
+    const response = await fetch(`${API_BASE_URL}/api/logistica/coleta`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        motorista, // ⬅️ Mudamos de 'cidade' para 'motorista'
+        unidade,
         pdfNome,
         pdfBase64,
       }),
@@ -175,6 +175,7 @@ export async function salvarChecklistLogistica(motorista, pdfNome, pdfBase64) {
     throw error
   }
 }
+
 export async function salvarTransferenciaPosVenda(cidade, pdfNome, pdfBase64) {
   try {
     const response = await fetch(`${API_BASE_URL}/api/pos-venda/transferencia`, {

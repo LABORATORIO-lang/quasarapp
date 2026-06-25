@@ -55,6 +55,11 @@
             <div class="text-caption text-grey-5">Máquina usada</div>
           </q-card-section>
         </q-card>
+        <q-card-section class="q-pa-md text-center">
+          <q-icon name="swap_horiz" size="48px" color="orange-8" class="q-mb-sm" />
+          <div class="text-h6 text-weight-bold text-orange-8">Revisão</div>
+          <div class="text-caption text-grey-5">Máquina usada para Revisão</div>
+        </q-card-section>
       </div>
     </div>
   </q-page>
