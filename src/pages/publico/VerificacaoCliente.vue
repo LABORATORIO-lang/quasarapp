@@ -20,7 +20,7 @@
       <div class="text-center q-mb-lg">
         <div class="text-h5 text-weight-bold text-orange-8">Verificação de Recebimento</div>
         <div class="text-caption text-grey-5">
-          Confira os dados da máquina e assine para confirmar
+          Confira os dados da máquina, tire as fotos e assine para confirmar
         </div>
       </div>
 
@@ -51,6 +51,62 @@
         </q-card-section>
       </q-card>
 
+      <!-- FOTOS DA ENTREGA -->
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Fotos da Entrega (Obrigatório)
+      </div>
+      <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
+        <q-card-section>
+          <div class="row q-col-gutter-md">
+            <div
+              class="col-6 col-md-3"
+              v-for="posicao in ['Frente', 'Direita', 'Traseira', 'Esquerda']"
+              :key="posicao"
+            >
+              <div class="text-center">
+                <div
+                  class="bg-grey-10 flex flex-center cursor-pointer shadow-2"
+                  style="
+                    height: 100px;
+                    border-radius: 8px;
+                    border: 1px dashed #555;
+                    position: relative;
+                  "
+                  @click="abrirCameraFoto(posicao)"
+                >
+                  <q-img
+                    v-if="fotosGerais[posicao]"
+                    :src="fotosGerais[posicao]"
+                    style="height: 100%; border-radius: 8px"
+                  />
+                  <q-icon v-else name="add_a_photo" color="orange-8" size="md" />
+                  <q-btn
+                    v-if="fotosGerais[posicao]"
+                    round
+                    dense
+                    color="red"
+                    icon="close"
+                    size="xs"
+                    style="position: absolute; top: -5px; right: -5px"
+                    @click.stop="removerFoto(posicao)"
+                  />
+                </div>
+                <div class="text-grey-4 text-caption q-mt-xs text-uppercase">{{ posicao }}</div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        id="file-input-entrega"
+        style="display: none"
+        @change="processarFoto"
+      />
+
       <div class="row items-center justify-between q-mb-sm">
         <div class="text-subtitle2 text-grey-5">ITENS DE VERIFICAÇÃO</div>
         <q-badge color="orange-8" class="text-black text-weight-bold">
@@ -61,33 +117,24 @@
         <q-list separator>
           <template v-for="(item, idx) in dados.checklistEntrada" :key="idx">
             <q-item>
-              <q-item-section>
-                <q-item-label class="text-white">{{ item.texto }}</q-item-label>
-                <q-item-label caption>
-                  <q-badge :color="corStatus(item.resposta)" class="q-mr-xs">
-                    Entrada: {{ item.resposta || 'N/A' }}
-                  </q-badge>
-                  <span v-if="item.observacao && item.observacao !== '-'" class="text-grey-5">
-                    {{ item.observacao }}
-                  </span>
-                </q-item-label>
-              </q-item-section>
               <q-item-section side>
                 <q-checkbox
                   v-model="respostasCliente[idx]"
-                  :true-value="respostaPositiva(item.resposta)"
-                  :false-value="''"
+                  true-value="VERIFICADO"
+                  false-value=""
                   color="orange-8"
                   dark
-                  checked-icon="check_circle"
-                  unchecked-icon="radio_button_unchecked"
                 />
               </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-white text-weight-medium">{{ item.texto }}</q-item-label>
+              </q-item-section>
             </q-item>
+
             <div class="q-px-md q-pb-sm">
               <q-input
                 v-model="observacoesCliente[idx]"
-                label="Obs do item"
+                label="Observação (opcional)"
                 dark
                 dense
                 filled
@@ -100,7 +147,9 @@
         </q-list>
       </q-card>
 
-      <div class="text-subtitle2 text-grey-5 q-mb-sm">DADOS DO RECEBEDOR</div>
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Dados do Recebedor
+      </div>
       <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
         <q-card-section class="q-gutter-y-sm">
           <q-input
@@ -115,59 +164,136 @@
 
           <q-input
             v-model="cpfCnpjRecebedor"
-            label="CPF/CNPJ"
+            label="CPF do Recebedor"
             dark
             filled
             dense
             color="orange-8"
             bg-color="grey-10"
-            :mask="mascaraDocumento"
-            unmasked-value
-            :rules="[
-              (val) =>
-                !val || validarDocumentoReal(val) || 'Documento inválido. Confira os números.',
-            ]"
-            lazy-rules
+            mask="###.###.###-##"
+          />
+        </q-card-section>
+      </q-card>
+
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Dados do Motorista / Entregador
+      </div>
+      <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
+        <q-card-section class="q-gutter-y-sm">
+          <q-input
+            v-model="nomeMotoristaTerceiro"
+            label="Nome do Motorista Terceiro"
+            dark
+            filled
+            dense
+            color="orange-8"
+            bg-color="grey-10"
           />
         </q-card-section>
       </q-card>
 
       <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs q-mt-lg">
-        Assinatura do Cliente
+        Validação e Assinatura
       </div>
 
       <q-card
-        class="bg-grey-10"
-        style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
-        :style="assinado ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)' : ''"
+        class="bg-grey-9 shadow-5 q-mb-lg"
+        style="border-radius: 12px; border: 1px solid #424242"
       >
-        <q-card-section class="q-pa-md">
-          <div class="flex justify-between items-center q-mb-md">
-            <div class="text-subtitle2 text-weight-bold text-white flex items-center">
-              <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" />
-              Cliente
-            </div>
-            <q-badge
-              :color="assinado ? 'green-8' : 'grey-8'"
-              :text-color="assinado ? 'white' : 'grey-4'"
-              rounded
-              class="q-px-sm q-py-xs text-weight-bold"
-            >
-              <q-icon :name="assinado ? 'check_circle' : 'pending'" class="q-mr-xs" size="14px" />
-              {{ assinado ? 'Assinado' : 'Pendente' }}
-            </q-badge>
-          </div>
+        <q-card-section class="q-pt-md">
+          <div class="row q-col-gutter-md">
+            <!-- CLIENTE / RECEBEDOR -->
+            <div class="col-12 col-md-6">
+              <q-card
+                class="bg-grey-10"
+                style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
+                :style="
+                  assinado
+                    ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)'
+                    : ''
+                "
+              >
+                <q-card-section class="q-pa-md">
+                  <div class="flex justify-between items-center q-mb-md">
+                    <div class="text-subtitle2 text-weight-bold text-white flex items-center">
+                      <q-icon name="person" class="q-mr-sm text-orange-8" size="sm" />
+                      Cliente / Recebedor
+                    </div>
+                    <q-badge
+                      :color="assinado ? 'green-8' : 'grey-8'"
+                      :text-color="assinado ? 'white' : 'grey-4'"
+                      rounded
+                      class="q-px-sm q-py-xs text-weight-bold"
+                    >
+                      <q-icon
+                        :name="assinado ? 'check_circle' : 'pending'"
+                        class="q-mr-xs"
+                        size="14px"
+                      />
+                      {{ assinado ? 'Assinado' : 'Pendente' }}
+                    </q-badge>
+                  </div>
 
-          <q-btn
-            :color="assinado ? 'grey-8' : 'orange-8'"
-            :text-color="assinado ? 'white' : 'black'"
-            :icon="assinado ? 'draw' : 'gesture'"
-            :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
-            class="full-width text-weight-bold"
-            unelevated
-            style="border-radius: 6px"
-            @click="dialogAssinaturaAberto = true"
-          />
+                  <q-btn
+                    :color="assinado ? 'grey-8' : 'orange-8'"
+                    :text-color="assinado ? 'white' : 'black'"
+                    :icon="assinado ? 'draw' : 'gesture'"
+                    :label="assinado ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+                    class="full-width text-weight-bold"
+                    unelevated
+                    style="border-radius: 6px"
+                    @click="abrirDialogAssinatura('cliente')"
+                  />
+                </q-card-section>
+              </q-card>
+            </div>
+
+            <!-- MOTORISTA TERCEIRO -->
+            <div class="col-12 col-md-6">
+              <q-card
+                class="bg-grey-10"
+                style="border-radius: 8px; border: 1px solid #555; transition: all 0.3s ease"
+                :style="
+                  assinadoMotorista
+                    ? 'border-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.2)'
+                    : ''
+                "
+              >
+                <q-card-section class="q-pa-md">
+                  <div class="flex justify-between items-center q-mb-md">
+                    <div class="text-subtitle2 text-weight-bold text-white flex items-center">
+                      <q-icon name="local_shipping" class="q-mr-sm text-orange-8" size="sm" />
+                      Motorista / Entregador
+                    </div>
+                    <q-badge
+                      :color="assinadoMotorista ? 'green-8' : 'grey-8'"
+                      :text-color="assinadoMotorista ? 'white' : 'grey-4'"
+                      rounded
+                      class="q-px-sm q-py-xs text-weight-bold"
+                    >
+                      <q-icon
+                        :name="assinadoMotorista ? 'check_circle' : 'pending'"
+                        class="q-mr-xs"
+                        size="14px"
+                      />
+                      {{ assinadoMotorista ? 'Assinado' : 'Pendente' }}
+                    </q-badge>
+                  </div>
+
+                  <q-btn
+                    :color="assinadoMotorista ? 'grey-8' : 'orange-8'"
+                    :text-color="assinadoMotorista ? 'white' : 'black'"
+                    :icon="assinadoMotorista ? 'draw' : 'gesture'"
+                    :label="assinadoMotorista ? 'Refazer Assinatura' : 'Coletar Assinatura'"
+                    class="full-width text-weight-bold"
+                    unelevated
+                    style="border-radius: 6px"
+                    @click="abrirDialogAssinatura('motorista')"
+                  />
+                </q-card-section>
+              </q-card>
+            </div>
+          </div>
         </q-card-section>
       </q-card>
 
@@ -192,7 +318,7 @@
                 />
                 <div>
                   <div class="text-h6 text-white" style="line-height: 1.2">
-                    Assinatura do Cliente
+                    Assinatura do {{ assinaturaAtual === 'motorista' ? 'Motorista' : 'Cliente' }}
                   </div>
                   <div class="text-caption text-orange-8">Assine no espaço em branco abaixo</div>
                 </div>
@@ -307,146 +433,125 @@
       />
 
       <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-        Preencha nome, documento válido e assine para confirmar
+        Tire as 4 fotos, verifique os itens, preencha nome, CPF válido e as duas assinaturas para
+        confirmar
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
-
-// Importações dos geradores de infraestrutura de mídia adicionados (Melhoria #10)
+import { getAuth /*signInAnonymously*/ } from 'firebase/auth'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 import { salvarTransferenciaPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
 
 const $q = useQuasar()
 const route = useRoute()
 
+// 1. VARIÁVEIS BASE
 const carregando = ref(true)
 const erro = ref('')
 const salvando = ref(false)
 const dados = ref({})
+const respostasCliente = ref({})
 const observacoesCliente = ref({})
 const nomeRecebedor = ref('')
 const cpfCnpjRecebedor = ref('')
 const observacaoGeral = ref('')
 const assinado = ref(false)
-
-// Canvas
+const assinadoMotorista = ref(false)
+const nomeMotoristaTerceiro = ref('')
+const assinaturaImagem = ref(null)
+const assinaturaImagemMotorista = ref(null)
+const dialogAssinaturaAberto = ref(false)
+const assinaturaAtual = ref('cliente')
+const fotosGerais = ref({ Frente: null, Direita: null, Traseira: null, Esquerda: null })
+const fotoSelecionada = ref(null)
 const canvasRef = ref(null)
 const isDrawing = ref(false)
 let lastX = 0
 let lastY = 0
-const assinaturaImagem = ref(null)
-const dialogAssinaturaAberto = ref(false)
 
-const mascaraDocumento = computed(() => {
-  const numeros = cpfCnpjRecebedor.value ? cpfCnpjRecebedor.value.replace(/\D/g, '') : ''
-  return numeros.length <= 11 ? '###.###.###-##FFFF' : '##.###.###/####-##'
+// 2. FUNÇÕES COMPUTADAS (As que estavam dando erro)
+
+const totalItens = computed(() => {
+  return (dados.value.checklistEntrada || []).length
+})
+
+const itensVerificados = computed(() => {
+  return Object.values(respostasCliente.value).filter((item) => item === 'VERIFICADO').length
 })
 
 const podeConfirmar = computed(() => {
-  const docLimpo = cpfCnpjRecebedor.value ? cpfCnpjRecebedor.value.replace(/\D/g, '') : ''
-  return nomeRecebedor.value.trim() && validarDocumentoReal(docLimpo) && assinado.value
+  const docLimpo = cpfCnpjRecebedor.value.replace(/\D/g, '')
+
+  const nomeOk = nomeRecebedor.value.trim().length > 2
+  const docOk = validarCPF(docLimpo)
+  const motoristaOk = nomeMotoristaTerceiro.value.trim().length > 2
+  const clienteAssinado = assinado.value
+  const motoristaAssinado = assinadoMotorista.value
+  const fotosOk = Object.values(fotosGerais.value).every((f) => f)
+
+  const lista = dados.value.checklistEntrada || []
+
+  const todosVerificados = lista.every((_, idx) => {
+    return respostasCliente.value[idx] === 'VERIFICADO'
+  })
+
+  return (
+    nomeOk &&
+    docOk &&
+    motoristaOk &&
+    clienteAssinado &&
+    motoristaAssinado &&
+    fotosOk &&
+    todosVerificados
+  )
 })
 
-const validarDocumentoReal = (valor) => {
-  if (!valor) return false
-  const strValue = valor.replace(/\D/g, '')
-
-  if (strValue.length === 11) {
-    return validarCPF(strValue)
-  } else if (strValue.length === 14) {
-    return validarCNPJ(strValue)
-  }
-  return false
-}
-
 function validarCPF(cpf) {
-  if (/^(\d)\1{10}$/.test(cpf)) return false
-
-  let soma = 0,
-    resto
+  if (!cpf || cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false
+  let soma = 0
+  let resto
   for (let i = 1; i <= 9; i++) soma += parseInt(cpf.substring(i - 1, i)) * (11 - i)
   resto = (soma * 10) % 11
   if (resto === 10 || resto === 11) resto = 0
   if (resto !== parseInt(cpf.substring(9, 10))) return false
-
   soma = 0
   for (let i = 1; i <= 10; i++) soma += parseInt(cpf.substring(i - 1, i)) * (12 - i)
   resto = (soma * 10) % 11
   if (resto === 10 || resto === 11) resto = 0
   if (resto !== parseInt(cpf.substring(10, 11))) return false
-
   return true
 }
 
-function validarCNPJ(cnpj) {
-  if (/^(\d)\1{13}$/.test(cnpj)) return false
-  let tamanho = cnpj.length - 2
-  let numeros = cnpj.substring(0, tamanho)
-  let digitos = cnpj.substring(tamanho)
-  let soma = 0
-  let pos = tamanho - 7
-  for (let i = tamanho; i >= 1; i--) {
-    soma += parseInt(numeros.charAt(tamanho - i)) * pos--
-    if (pos < 2) pos = 9
-  }
-  let resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11)
-  if (resultado !== parseInt(digitos.charAt(0))) return false
-  tamanho = tamanho + 1
-  numeros = cnpj.substring(0, tamanho)
-  soma = 0
-  pos = tamanho - 7
-  for (let i = tamanho; i >= 1; i--) {
-    soma += parseInt(numeros.charAt(tamanho - i)) * pos--
-    if (pos < 2) pos = 9
-  }
-  resultado = soma % 11 < 2 ? 0 : 11 - (soma % 11)
-  if (resultado !== parseInt(digitos.charAt(1))) return false
-  return true
+// RESTO DAS FUNÇÕES (Fotos, Assinatura e Confirmar)
+const abrirCameraFoto = (posicao) => {
+  fotoSelecionada.value = posicao
+  document.getElementById('file-input-entrega')?.click()
 }
 
-onMounted(async () => {
-  try {
-    const token = route.params.token
-    if (!token) {
-      erro.value = 'Link inválido.'
-      return
-    }
-
-    const docSnap = await getDoc(doc(db, 'entregas_cliente', token))
-    if (!docSnap.exists()) {
-      erro.value = 'Link não encontrado ou inválido.'
-      return
-    }
-
-    const d = docSnap.data()
-
-    if (d.expiraEm && new Date(d.expiraEm) < new Date()) {
-      erro.value = 'Este link expirou. Solicite um novo ao vendedor.'
-      return
-    }
-
-    dados.value = d
-
-    if (d.cliente) nomeRecebedor.value = d.cliente
-    if (d.cpfCnpj) cpfCnpjRecebedor.value = d.cpfCnpj
-
-    await nextTick()
-    initCanvas()
-  } catch (e) {
-    console.error('Erro ao carregar verificação:', e)
-    erro.value = 'Erro ao carregar os dados. Tente novamente.'
-  } finally {
-    carregando.value = false
+const processarFoto = (event) => {
+  const file = event.target.files[0]
+  const posicao = fotoSelecionada.value
+  if (!file || !posicao) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    fotosGerais.value[posicao] = e.target.result
+    fotoSelecionada.value = null
   }
-})
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+const removerFoto = (posicao) => {
+  fotosGerais.value[posicao] = null
+}
 
 const initCanvas = () => {
   const canvas = canvasRef.value
@@ -492,12 +597,25 @@ const stopDrawing = () => {
   isDrawing.value = false
 }
 
+const abrirDialogAssinatura = (tipo) => {
+  assinaturaAtual.value = tipo
+  dialogAssinaturaAberto.value = true
+}
+
 const confirmarAssinatura = () => {
-  if (!assinado.value) {
+  if (assinaturaAtual.value === 'cliente' && !assinado.value) {
     $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
     return
   }
-  assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
+  if (assinaturaAtual.value === 'motorista' && !assinadoMotorista.value) {
+    $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
+    return
+  }
+  if (assinaturaAtual.value === 'motorista') {
+    assinaturaImagemMotorista.value = canvasRef.value.toDataURL('image/png')
+  } else {
+    assinaturaImagem.value = canvasRef.value.toDataURL('image/png')
+  }
   dialogAssinaturaAberto.value = false
   $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
 }
@@ -512,19 +630,30 @@ const draw = (e) => {
   ctx.stroke()
   lastX = pos.x
   lastY = pos.y
-  assinado.value = true
+
+  if (assinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = true
+  } else {
+    assinado.value = true
+  }
 }
 
 const limparAssinatura = () => {
   const ctx = canvasRef.value.getContext('2d')
   ctx.clearRect(0, 0, canvasRef.value.width, canvasRef.value.height)
-  assinado.value = false
+  if (assinaturaAtual.value === 'motorista') {
+    assinadoMotorista.value = false
+    assinaturaImagemMotorista.value = null
+  } else {
+    assinado.value = false
+    assinaturaImagem.value = null
+  }
 }
 
 const confirmarRecebimento = async () => {
   const docLimpo = cpfCnpjRecebedor.value ? cpfCnpjRecebedor.value.replace(/\D/g, '') : ''
-  if (!validarDocumentoReal(docLimpo)) {
-    $q.notify({ type: 'negative', message: 'Documento inválido. Forneça um CPF ou CNPJ real.' })
+  if (!validarCPF(docLimpo)) {
+    $q.notify({ type: 'negative', message: 'CPF inválido. Confira os números.' })
     return
   }
 
@@ -533,71 +662,63 @@ const confirmarRecebimento = async () => {
     const token = route.params.token
     const serie = dados.value.serie
 
-    // Prepara a observação para o histórico interno (Acumulada)
     const novaObsTexto = observacaoGeral.value.trim()
       ? `${nomeRecebedor.value}: ${observacaoGeral.value}`
       : ''
     const obsAntiga = dados.value.observacaoGeral || ''
     const observacaoAcumulada = [obsAntiga, novaObsTexto].filter(Boolean).join('\n')
 
-    // Acumula observações dos ITENS para o histórico interno da máquina
+    await updateDoc(doc(db, 'entregas_cliente', token), {
+      status: 'assinado',
+      nomeRecebedor: nomeRecebedor.value,
+      cpfCnpjRecebedor: docLimpo,
+      nomeMotoristaTerceiro: nomeMotoristaTerceiro.value,
+      assinaturaCliente: assinaturaImagem.value,
+      assinaturaMotorista: assinaturaImagemMotorista.value,
+      observacoesCliente: { ...observacoesCliente.value },
+      respostasCliente: { ...respostasCliente.value },
+      observacaoGeral: observacaoAcumulada,
+      dataAssinatura: Timestamp.now(),
+    })
+
     const checklistAcumulado = (dados.value.checklistEntrada || []).map((item, idx) => {
       const notaCliente = (observacoesCliente.value[idx] || '').trim()
       const novaNota = notaCliente ? `${nomeRecebedor.value}: ${notaCliente}` : ''
       const notaAntiga = item.observacao && item.observacao !== '-' ? item.observacao : ''
-
       return {
         ...item,
         observacao: [notaAntiga, novaNota].filter(Boolean).join('\n') || '-',
       }
     })
 
-    // 1. Atualiza documento de controle público da entrega
-    await updateDoc(doc(db, 'entregas_cliente', token), {
-      status: 'assinado',
-      nomeRecebedor: nomeRecebedor.value,
-      cpfCnpjRecebedor: docLimpo,
-      assinaturaCliente: assinaturaImagem.value
-        ? signatureContainerElementCleanup(assinaturaImagem.value)
-        : null,
-      observacoesCliente: { ...observacoesCliente.value },
-      observacaoGeral: observacaoGeral.value, // No link do cliente mantemos apenas a dele
-      dataAssinatura: Timestamp.now(),
-    })
-
-    // 2. Busca histórico da máquina para indexar o número correto do PDF
     const maquinaRef = doc(db, 'maquinas', serie)
     const maquinaSnap = await getDoc(maquinaRef)
     const historicoAtual = maquinaSnap.exists() ? maquinaSnap.data().historico || [] : []
     const numeroAcao = historicoAtual.length + 1
     const pdfNome = `${serie}-${numeroAcao}-entrega-cliente`
 
-    // 3. Insere o evento de encerramento na linha do tempo principal da máquina
-    const itemHistorico = {
-      tipo: 'entrega_cliente',
-      cliente: nomeRecebedor.value,
-      unidade: dados.value.unidadeOrigem || '',
-      data: new Date().toISOString().slice(0, 10),
-      responsavel: dados.value.motorista || dados.value.responsavel || 'Motorista Terceirizado',
-      pdfNome: pdfNome,
-      numero: numeroAcao,
-      observacaoGeral: novaObsTexto,
-    }
-
     await updateDoc(maquinaRef, {
       status: 'entregue',
-      observacaoGeral: observacaoAcumulada, // Banco de dados fica com tudo
-      checklistEntrada: checklistAcumulado, // Itens agora também guardam histórico
+      observacaoGeral: observacaoAcumulada,
+      checklistEntrada: checklistAcumulado,
       ultimaAtualizacao: Timestamp.now(),
-      historico: arrayUnion(itemHistorico),
+      historico: arrayUnion({
+        tipo: 'entrega_cliente',
+        cliente: nomeRecebedor.value,
+        unidade: dados.value.unidadeOrigem || '',
+        data: new Date().toISOString().slice(0, 10),
+        responsavel: nomeMotoristaTerceiro.value || dados.value.motorista || 'Motorista Terceiro',
+        pdfNome: pdfNome,
+        numero: numeroAcao,
+        observacaoGeral: novaObsTexto,
+      }),
     })
 
-    // 4. [Melhoria #10 Fix]: Processa a geração e upload do PDF técnico assinado pelo cliente
     try {
       const dadosParaPdf = {
         tipoPdf: 'entrega_cliente',
         nomeMaquina: `${dados.value.modelo} — ${dados.value.serie}`,
-        observacaoGeral: observacaoGeral.value, // O PDF do cliente sai limpo, apenas com o que ele escreveu
+        observacaoGeral: observacaoAcumulada,
         dadosFormulario: {
           serie: dados.value.serie,
           modelo: dados.value.modelo,
@@ -610,14 +731,18 @@ const confirmarRecebimento = async () => {
         respostasChecklist: (dados.value.checklistEntrada || []).map((item, index) => ({
           texto: item.texto,
           resposta: item.resposta,
+          respostaCliente: respostasCliente.value[index] || '-',
           observacao: observacoesCliente.value[index] || item.observacao || '-',
         })),
         assinaturas: {
-          responsavelNome: dados.value.motorista || 'Motorista Terceirizado',
-          responsavelImagem: null, // Motorista de frete terceiro não assina no tablet de origem
-          motoristaNome: nomeRecebedor.value,
-          motoristaImagem: assinaturaImagem.value, // Assinatura digital colhida do cliente
+          responsavelNome: nomeRecebedor.value,
+          responsavelImagem: assinaturaImagem.value,
+          responsavelCpf: docLimpo,
+          motoristaNome:
+            nomeMotoristaTerceiro.value || dados.value.motorista || 'Motorista Terceiro',
+          motoristaImagem: assinaturaImagemMotorista.value,
         },
+        fotosGerais: fotosGerais.value,
         dataConclusao: new Date().toISOString(),
         dataHoraFormatada:
           new Date().toLocaleDateString('pt-BR') +
@@ -635,13 +760,9 @@ const confirmarRecebimento = async () => {
           pdfNome,
           base64Limpo,
         )
-        console.log('✅ PDF de entrega técnica gerado e arquivado no servidor local')
       }
     } catch (pdfError) {
-      console.warn(
-        '⚠️ Falha ao estruturar PDF de entrega técnica no link público:',
-        pdfError.message,
-      )
+      console.warn('⚠️ Falha ao gerar PDF de entrega técnica:', pdfError.message)
     }
 
     dados.value.status = 'assinado'
@@ -654,12 +775,68 @@ const confirmarRecebimento = async () => {
   }
 }
 
-// Método preventivo para limpeza de strings de imagem Base64
-function signatureContainerElementCleanup(dataUrl) {
-  if (!dataUrl) return null
-  return dataUrl.trim()
-}
+onMounted(async () => {
+  try {
+    // const auth = getAuth()
+    //
+    // if (!auth.currentUser) await signInAnonymously(auth)
+
+    const token = route.params.token
+    if (!token) {
+      erro.value = 'Link inválido.'
+      return
+    }
+
+    const docSnap = await getDoc(doc(db, 'entregas_cliente', token))
+    if (!docSnap.exists()) {
+      erro.value = 'Link não encontrado ou inválido.'
+      return
+    }
+
+    const d = docSnap.data()
+    if (d.expiraEm && new Date(d.expiraEm) < new Date()) {
+      erro.value = 'Este link expirou. Solicite um novo ao vendedor.'
+      return
+    }
+
+    dados.value = d
+    if (d.checklistEntrada && Array.isArray(d.checklistEntrada)) {
+      d.checklistEntrada.forEach((_, idx) => {
+        observacoesCliente.value[idx] = observacoesCliente.value[idx] || ''
+        respostasCliente.value[idx] = respostasCliente.value[idx] || ''
+      })
+    }
+    if (d.cliente) nomeRecebedor.value = d.cliente
+    if (d.cpfCnpj) cpfCnpjRecebedor.value = d.cpfCnpj
+    if (d.motorista) nomeMotoristaTerceiro.value = d.motorista
+
+    await nextTick()
+    initCanvas()
+  } catch (e) {
+    console.error('Erro ao carregar verificação:', e)
+    erro.value = 'Erro ao carregar os dados. Tente novamente.'
+  } finally {
+    carregando.value = false
+  }
+})
+
+onUnmounted(() => {
+  const auth = getAuth()
+  if (auth.currentUser && auth.currentUser.isAnonymous) auth.signOut().catch(() => {})
+})
 </script>
+
+<style scoped>
+.signature-container {
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+</style>
+
+<style scoped>
+.signature-container {
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+</style>
 
 <style scoped>
 .signature-container {

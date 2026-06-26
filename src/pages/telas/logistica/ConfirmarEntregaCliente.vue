@@ -45,6 +45,61 @@
           </div>
         </q-card-section>
       </q-card>
+      <!-- FOTOS DA ENTREGA -->
+      <div class="text-subtitle2 text-weight-bold text-uppercase q-mb-sm q-ml-xs">
+        Fotos da Entrega (Obrigatório)
+      </div>
+      <q-card class="bg-grey-9 q-mb-md" style="border: 1px solid #333; border-radius: 8px">
+        <q-card-section>
+          <div class="row q-col-gutter-md">
+            <div
+              class="col-6 col-md-3"
+              v-for="posicao in ['Frente', 'Direita', 'Traseira', 'Esquerda']"
+              :key="posicao"
+            >
+              <div class="text-center">
+                <div
+                  class="bg-grey-10 flex flex-center cursor-pointer shadow-2"
+                  style="
+                    height: 100px;
+                    border-radius: 8px;
+                    border: 1px dashed #555;
+                    position: relative;
+                  "
+                  @click="abrirCameraFoto(posicao)"
+                >
+                  <q-img
+                    v-if="fotosGerais[posicao]"
+                    :src="fotosGerais[posicao]"
+                    style="height: 100%; border-radius: 8px"
+                  />
+                  <q-icon v-else name="add_a_photo" color="orange-8" size="md" />
+                  <q-btn
+                    v-if="fotosGerais[posicao]"
+                    round
+                    dense
+                    color="red"
+                    icon="close"
+                    size="xs"
+                    style="position: absolute; top: -5px; right: -5px"
+                    @click.stop="removerFoto(posicao)"
+                  />
+                </div>
+                <div class="text-grey-4 text-caption q-mt-xs text-uppercase">{{ posicao }}</div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        id="file-input-entrega-proprio"
+        style="display: none"
+        @change="processarFoto"
+      />
 
       <div class="row items-center justify-between q-mb-sm">
         <div class="text-subtitle2 text-grey-5">ITENS DE VERIFICAÇÃO</div>
@@ -333,7 +388,8 @@
         @click="confirmarEntrega"
       />
       <div v-if="!podeConfirmar" class="text-caption text-center text-grey-5 q-mt-sm">
-        Verifique todos os itens, preencha nome, CPF e as duas assinaturas para confirmar
+        Tire as 4 fotos, verifique todos os itens, preencha nome, CPF e as duas assinaturas para
+        confirmar
       </div>
     </div>
   </q-page>
@@ -384,12 +440,40 @@ const podeConfirmar = computed(() => {
   const cpfOk = cpfRecebedor.value.replace(/\D/g, '').length === 11
   const assinaClienteOk = assinado.value
   const assinaMotoristaOk = assinadoMotorista.value
+  const fotosOk = Object.values(fotosGerais.value).every((foto) => foto !== null)
+
   const todosRespondidos = checklist.value.every((_, idx) => {
     const r = (respostasCliente.value[idx] || '').toString().trim()
     return r !== ''
   })
-  return nomeOk && cpfOk && assinaClienteOk && assinaMotoristaOk && todosRespondidos
+  return nomeOk && cpfOk && assinaClienteOk && assinaMotoristaOk && fotosOk && todosRespondidos
 })
+
+const fotosGerais = ref({ Frente: null, Direita: null, Traseira: null, Esquerda: null })
+const fotoSelecionada = ref(null)
+
+const abrirCameraFoto = (posicao) => {
+  fotoSelecionada.value = posicao
+  document.getElementById('file-input-entrega-proprio')?.click()
+}
+
+const processarFoto = (event) => {
+  const file = event.target.files[0]
+  const posicao = fotoSelecionada.value
+  if (!file || !posicao) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    fotosGerais.value[posicao] = e.target.result
+    fotoSelecionada.value = null
+  }
+  reader.readAsDataURL(file)
+  event.target.value = ''
+}
+
+const removerFoto = (posicao) => {
+  fotosGerais.value[posicao] = null
+}
 
 const corStatus = (resposta) => {
   const map = {
@@ -634,6 +718,8 @@ const confirmarEntrega = async () => {
           motoristaNome: n.motorista || 'Motorista',
           motoristaImagem: assinaturaImagemMotorista.value,
         },
+        fotosGerais: fotosGerais.value,
+
         dataConclusao: new Date().toISOString(),
         dataHoraFormatada:
           new Date().toLocaleDateString('pt-BR') +

@@ -174,38 +174,77 @@ const carregarLinksEntrega = async () => {
   try {
     if (!unidadeUsuario.value) return
 
-    const snap = await getDocs(
-      query(
-        collection(db, 'entregas_cliente'),
-        where('status', '==', 'pendente'),
-        where('unidade', '==', unidadeUsuario.value),
-      ),
-    )
+    // Busca entregas pendentes da unidade
+    // Como não podemos fazer list com where (regras), buscamos por série de cada máquina em estoque
     const map = {}
-    snap.forEach((docSnap) => {
-      const d = docSnap.data()
-      if (d.serie && d.token) {
-        map[d.serie] = {
-          token: d.token,
-          link: `${window.location.origin}/#/verificacao/${d.token}`,
-          cliente: d.cliente || '',
+
+    for (const maquina of maquinas.value) {
+      if (maquina.status !== 'aguardando_entrega_cliente') continue
+
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, 'entregas_cliente'),
+            where('serie', '==', maquina.serie),
+            where('status', '==', 'pendente'),
+          ),
+        )
+
+        if (!snap.empty) {
+          const d = snap.docs[0].data()
+          if (d.token) {
+            map[d.serie] = {
+              token: d.token,
+              link: `${window.location.origin}/#/verificacao/${d.token}`,
+              cliente: d.cliente || '',
+            }
+          }
         }
+      } catch (e) {
+        console.warn(`Erro ao buscar link para ${maquina.serie}:`, e)
       }
-    })
+    }
+
     entregasLink.value = map
   } catch (e) {
     console.error('Erro ao carregar links:', e)
   }
 }
-const copiarLinkCliente = (maquina) => {
-  const entrega = entregasLink.value[maquina.serie]
+
+const copiarLinkCliente = async (maquina) => {
+  // Tenta usar o cache primeiro
+  let entrega = entregasLink.value[maquina.serie]
+
+  // Se não tem no cache, busca no Firestore direto
+  if (!entrega) {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, 'entregas_cliente'),
+          where('serie', '==', maquina.serie),
+          where('status', '==', 'pendente'),
+        ),
+      )
+      if (!snap.empty) {
+        const d = snap.docs[0].data()
+        entrega = {
+          token: d.token,
+          link: `${window.location.origin}/#/verificacao/${d.token}`,
+          cliente: d.cliente || '',
+        }
+      }
+    } catch (e) {
+      console.error('Erro ao buscar link:', e)
+    }
+  }
+
   if (entrega && entrega.link) {
     navigator.clipboard.writeText(entrega.link)
     $q.notify({ type: 'positive', message: 'Link copiado para a área de transferência!' })
     return
   }
 
-  // Fallback: se não carregou o link, tenta recriar a URL baseada no histórico
+  // Fallback no histórico
   const ultimoHistorico = maquina.historico?.length
     ? [...maquina.historico].reverse().find((h) => h.tipo === 'venda' && h.linkCliente)
     : null

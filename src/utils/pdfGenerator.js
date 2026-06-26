@@ -112,7 +112,7 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
   } else if (tipoPdf === 'venda') {
     tituloPdf = 'VENDA AO CLIENTE'
   } else if (tipoPdf === 'entrega_cliente') {
-    tituloPdf = 'TERMO DE ENTREGA TÉCNICA AO CLIENTE'
+    tituloPdf = 'ENTREGA AO CLIENTE'
   } else if (tipoPdf === 'edicao_checklist') {
     tituloPdf = 'EDIÇÃO DE CHECKLIST'
   }

@@ -578,6 +578,23 @@ const todosVerificados = computed(() => {
 })
 
 const podeConfirmar = computed(() => {
+  const checks = {
+    todosVerificados: todosVerificados.value,
+    responsavelNome: !!assinaturas.value.responsavelNome,
+    responsavelImagem: !!assinaturas.value.responsavelImagem,
+    motoristaNome: !!assinaturas.value.motoristaNome,
+    motoristaImagem: !!assinaturas.value.motoristaImagem,
+    nomeCliente: nomeCliente.value.trim() !== '',
+    destino: destino.value !== '',
+    tipoTransferencia: tipoTransferencia.value,
+    tipoFrete: tipoFrete.value,
+    cpfTerceiro:
+      tipoTransferencia.value !== 'cliente' || tipoFrete.value !== 'terceiro'
+        ? 'N/A'
+        : (assinaturas.value.motoristaCpf || '').replace(/\D/g, '').length >= 11,
+  }
+  console.log('DEBUG podeConfirmar:', checks)
+
   if (!todosVerificados.value) return false
   if (!assinaturas.value.responsavelNome || !assinaturas.value.responsavelImagem) return false
   if (!assinaturas.value.motoristaNome || !assinaturas.value.motoristaImagem) return false
@@ -961,6 +978,8 @@ const confirmarTransferencia = async () => {
             endereco: assinaturas.value.enderecoCliente || '',
             cpfCnpj: tipoFrete.value === 'terceiro' ? assinaturas.value.motoristaCpf || '' : '',
             unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
+            unidade: maquinaSelecionada.value.unidadeAtual, // ← NOVO
+            modo: 'terceiro', // ← NOVO
             checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
             motorista: motoristaFinal,
             data: dataHoje,
