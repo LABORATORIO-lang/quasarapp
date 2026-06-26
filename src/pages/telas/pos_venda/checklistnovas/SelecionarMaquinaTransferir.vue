@@ -246,6 +246,7 @@
             :options="[
               { label: 'Motorista Próprio', value: 'proprio' },
               { label: 'Frete Terceiro', value: 'terceiro' },
+              { label: 'Cliente Retirou', value: 'retirou' },
             ]"
             emit-value
             map-options
@@ -275,7 +276,8 @@
           <q-input
             v-if="
               tipoTransferencia === 'unidade' ||
-              (tipoTransferencia === 'cliente' && tipoFrete === 'terceiro')
+              (tipoTransferencia === 'cliente' && tipoFrete === 'terceiro') ||
+              (tipoTransferencia === 'cliente' && tipoFrete === 'retirou')
             "
             v-model="motoristaTransf"
             label="Nome do Motorista"
@@ -409,9 +411,9 @@
                   </q-input>
 
                   <q-input
-                    v-if="item.key === 'motorista' && tipoFrete === 'terceiro'"
+                    v-if="(item.key === 'motorista' && tipoFrete === 'terceiro', 'retirou')"
                     v-model="assinaturas[item.key + 'Cpf']"
-                    label="CPF do Motorista Terceiro"
+                    label="CPF do Motorista / Opeerador"
                     dark
                     filled
                     dense
@@ -600,9 +602,11 @@ const podeConfirmar = computed(() => {
   if (!assinaturas.value.motoristaNome || !assinaturas.value.motoristaImagem) return false
 
   // CPF obrigatório apenas para motorista terceiro
-  if (tipoTransferencia.value === 'cliente' && tipoFrete.value === 'terceiro') {
-    const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
-    if (cpfLimpo.length < 11) return false
+  if (tipoTransferencia.value === 'cliente') {
+    if (tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou') {
+      const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
+      if (cpfLimpo.length < 11) return false
+    }
   }
 
   if (tipoTransferencia.value === 'cliente') return nomeCliente.value.trim() !== ''
@@ -797,7 +801,10 @@ const carregarMaquinas = async () => {
 
     querySnapshot.forEach((docSnap) => {
       const dados = docSnap.data()
-      if (dados.status === 'em_estoque' && dados.unidadeAtual === minhaUnidade.value) {
+      if (
+        (dados.status === 'em_estoque' || dados.status === 'Em Revisão') &&
+        dados.unidadeAtual === minhaUnidade.value
+      ) {
         lista.push({ id: docSnap.id, ...dados })
       }
     })
@@ -1006,6 +1013,37 @@ const confirmarTransferencia = async () => {
           navigator.clipboard.writeText(linkCliente)
           $q.notify({ type: 'positive', message: 'Link copiado!' })
         })
+      }
+
+      if (tipoFrete.value === 'retirou') {
+        // PASSO 2: Cria entrega_cliente retirou
+        try {
+          await setDoc(doc(db, 'entregas_cliente', token), {
+            token: token,
+            serie: serie,
+            modelo: maquinaSelecionada.value.modelo,
+            marca: maquinaSelecionada.value.marca || '',
+            ano: maquinaSelecionada.value.ano || '',
+            horimetro: maquinaSelecionada.value.horimetro || '',
+            cliente: nomeCliente.value,
+            endereco: assinaturas.value.enderecoCliente || '',
+            cpfCnpj: tipoFrete.value === 'retirou' ? assinaturas.value.motoristaCpf || '' : '',
+            unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
+            unidade: maquinaSelecionada.value.unidadeAtual, // ← NOVO
+            modo: 'retirou', // ← NOVO
+            checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
+            motorista: motoristaFinal,
+            data: dataHoje,
+            criadaEm: Timestamp.now(),
+            status: 'entregue',
+            assinaturaCliente: null,
+            observacoesCliente: {},
+          })
+          console.log('✅ PASSO 2: entregas_cliente criado')
+        } catch (e) {
+          console.error('❌ ERRO PASSO 2 (entregas_cliente):', e.message)
+          throw e
+        }
       } else {
         // PASSO 3: Cria notificação
         try {

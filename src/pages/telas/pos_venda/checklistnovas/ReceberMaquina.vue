@@ -15,6 +15,7 @@
       <div class="col-12 col-sm-6 col-md-4">
         <q-card
           clickable
+          style="border-color: #ff9800"
           class="compact-card bg-grey-9 text-white"
           @click="router.push('/inicio/pos-venda/checklist/selecionar')"
         >
@@ -29,7 +30,8 @@
       <!-- Transferência Outra Unidade -->
       <div class="col-12 col-sm-6 col-md-4">
         <q-card
-          clickable
+          clickable,
+          style="border-color: #ff9800"
           class="compact-card bg-grey-9 text-white"
           @click="router.push('/inicio/pos-venda/maquinas/receber-transferencia')"
         >
@@ -37,6 +39,20 @@
             <q-icon name="local_shipping" size="48px" color="orange-8" class="q-mb-sm" />
             <div class="text-h6 text-weight-bold text-orange-8">Transferência</div>
             <div class="text-caption text-grey-5">Máquina vindo de outra unidade</div>
+          </q-card-section>
+        </q-card>
+      </div>
+      <div class="col-12 col-sm-6 col-md-4">
+        <q-card
+          clickable
+          class="compact-card bg-grey-9 text-white"
+          style="border-color: #ff9800"
+          @click="router.push('/inicio/comercial/checklist/selecionar?modo=revisao')"
+        >
+          <q-card-section class="q-pa-md text-center">
+            <q-icon name="construction" size="48px" color="orange-8" class="q-mb-sm" />
+            <div class="text-h6 text-weight-bold text-orange-8">Revisão</div>
+            <div class="text-caption text-grey-5">Máquina usada para revisão técnica</div>
           </q-card-section>
         </q-card>
       </div>
@@ -55,11 +71,6 @@
             <div class="text-caption text-grey-5">Máquina usada</div>
           </q-card-section>
         </q-card>
-        <q-card-section class="q-pa-md text-center">
-          <q-icon name="swap_horiz" size="48px" color="orange-8" class="q-mb-sm" />
-          <div class="text-h6 text-weight-bold text-orange-8">Revisão</div>
-          <div class="text-caption text-grey-5">Máquina usada para Revisão</div>
-        </q-card-section>
       </div>
     </div>
   </q-page>

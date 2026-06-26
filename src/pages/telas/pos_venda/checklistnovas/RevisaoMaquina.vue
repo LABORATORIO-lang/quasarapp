@@ -417,12 +417,42 @@ import localforage from 'localforage'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 import ItemVerificacao from 'src/components/ItemVerificacao.vue'
 import { salvarChecklistPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
-
-const modoEntregaCliente = computed(() => route.query.modo === 'entrega_cliente')
+const perfisAutorizados = ['master', 'adm_pos_venda']
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
+const verificarAcesso = async () => {
+  const auth = getAuth()
+  const user = auth.currentUser
+
+  if (!user) {
+    router.push('/login') // Se não está logado
+    return false
+  }
+
+  const userSnap = await getDoc(doc(db, 'usuarios', user.uid))
+  if (userSnap.exists()) {
+    const dadosUsuario = userSnap.data()
+    const perfisUsuario = dadosUsuario.perfis || []
+
+    // Verifica se algum perfil do usuário está na lista autorizada
+    const temPermissao = perfisUsuario.some((p) => perfisAutorizados.includes(p))
+
+    if (!temPermissao) {
+      $q.notify({ type: 'negative', message: 'Você não tem permissão para acessar esta tela.' })
+      router.push('/inicio') // Bloqueia o acesso
+      return false
+    }
+  }
+  return true
+}
+// Identificadores de Modo
+const modoEntregaCliente = computed(() => route.query.modo === 'entrega_cliente')
 const modoTransferencia = computed(() => route.query.modo === 'transferencia')
+// Identifica se a entrada é para revisão
+const modoRevisao = computed(
+  () => route.query.modo === 'revisao' || route.params.tipo === 'revisao',
+)
 
 // ================= 2. ESTADOS DO FORMULÁRIO =================
 const temAlteracoes = ref(false)
@@ -430,10 +460,10 @@ const nomeMaquina = ref('')
 const itens = ref([])
 const rascunhoId = ref(null)
 const bloqueioWatchUnidade = ref(false)
-
 const userName = ref('')
 const cidadeUsuario = ref('')
 const regrasAno = [(val) => (val >= 1900 && val <= 2100) || 'Ano inválido']
+
 const hojeLocal = () => {
   const d = new Date()
   const ano = d.getFullYear()
@@ -465,19 +495,16 @@ const assinaturas = ref({
   responsavelImagem: null,
   motoristaImagem: null,
 })
-
 const dialogAssinaturaAberto = ref(false)
 const tipoAssinaturaAtual = ref('')
 const nomeAssinaturaAtual = ref('')
 const tituloAssinaturaAtual = ref('')
 const labelNomeAssinaturaAtual = ref('')
-
 const canvasRef = ref(null)
 const isDrawing = ref(false)
 const hasSigned = ref(false)
 let lastX = 0
 let lastY = 0
-
 let larguraAnterior = window.innerWidth
 
 const tiposNomes = {
@@ -485,9 +512,11 @@ const tiposNomes = {
   transferencia: 'Transferência de Máquina',
   venda: 'Venda de Máquina',
 }
+
 const tituloTipo = computed(() => {
   if (modoEntregaCliente.value) return 'Entrega ao Cliente'
   if (modoTransferencia.value) return 'Recebimento de Transferência'
+  if (modoRevisao.value) return 'Recebimento para Revisão'
   return tiposNomes[route.params.tipo] || 'Checklist Pós-Venda'
 })
 
@@ -507,7 +536,6 @@ watch(
     if (bloqueioWatchUnidade.value) return
     if (!cidadeUsuario.value || !nova) return
     if (nova === cidadeUsuario.value) return
-
     $q.dialog({
       dark: true,
       title: '⚠️ Atenção',
@@ -530,13 +558,11 @@ watch(
   },
 )
 
-// Watcher para Auto-Save (Proteção contra bloqueio/minimização)
+// Auto-Save
 watch(
   [formulario, itens, fotosGerais, assinaturas],
   () => {
-    if (temAlteracoes.value) {
-      salvarRascunhoSilencioso()
-    }
+    if (temAlteracoes.value) salvarRascunhoSilencioso()
   },
   { deep: true },
 )
@@ -545,14 +571,14 @@ watch(
 onMounted(async () => {
   window.addEventListener('resize', handleResize)
   nomeMaquina.value = tituloTipo.value
-
+  const autorizado = await verificarAcesso()
+  if (!autorizado) return
   try {
     const sessao = await localforage.getItem('user_session')
     if (sessao) {
       if (sessao.cidade) cidadeUsuario.value = sessao.cidade
       if (sessao.nome) userName.value = sessao.nome
     }
-
     if (navigator.onLine && getAuth().currentUser) {
       const user = getAuth().currentUser
       const docRef = doc(db, 'usuarios', user.uid)
@@ -561,17 +587,11 @@ onMounted(async () => {
         const dados = docSnap.data()
         if (dados.cidade) {
           cidadeUsuario.value = dados.cidade
-          await localforage.setItem('user_session', {
-            ...(sessao || {}),
-            cidade: dados.cidade,
-          })
+          await localforage.setItem('user_session', { ...(sessao || {}), cidade: dados.cidade })
         }
         if (dados.nome) {
           userName.value = dados.nome
-          await localforage.setItem('user_session', {
-            ...(sessao || {}),
-            nome: dados.nome,
-          })
+          await localforage.setItem('user_session', { ...(sessao || {}), nome: dados.nome })
         }
       }
     }
@@ -581,12 +601,9 @@ onMounted(async () => {
 
   try {
     $q.loading.show({ message: 'A carregar checklist...' })
-
-    // Se for modo transferência ou entrega, priorizamos o carregamento dos itens do localforage
-    if (modoTransferencia.value || modoEntregaCliente.value) {
+    if (modoTransferencia.value || modoEntregaCliente.value || modoRevisao.value) {
       const key = modoTransferencia.value ? 'transferencia_pendente' : 'entrega_cliente_pendente'
       const pendente = await localforage.getItem(key)
-
       const serieQuery = (route.query.serie || '').toString().trim().toUpperCase()
       const seriePendente = (pendente?.serie || '').toString().trim().toUpperCase()
 
@@ -600,7 +617,12 @@ onMounted(async () => {
         if (pendente.ano) formulario.value.ano = pendente.ano
         if (pendente.horimetro) formulario.value.horimetro = pendente.horimetro
 
-        if (pendente.checklistEntrada && pendente.checklistEntrada.length > 0) {
+        // Se for revisão, recarregamos as perguntas originais para o técnico avaliar do zero
+        if (
+          pendente.checklistEntrada &&
+          pendente.checklistEntrada.length > 0 &&
+          !modoRevisao.value
+        ) {
           itens.value = pendente.checklistEntrada
         } else {
           await carregarPerguntas()
@@ -617,15 +639,12 @@ onMounted(async () => {
     if (idRascunho) {
       await carregarRascunho(idRascunho)
     } else {
-      // Tenta recuperar rascunho automático baseado na série ou tipo
       const serieUrl = route.query.serie || formulario.value.serie
       const chaveAuto = serieUrl
         ? `auto_save_pos_${serieUrl}`
         : `auto_save_pos_temp_${route.params.tipo}`
       const recuperado = await localforage.getItem(chaveAuto)
-      if (recuperado) {
-        await carregarRascunho(chaveAuto, true)
-      }
+      if (recuperado) await carregarRascunho(chaveAuto, true)
     }
   } catch (error) {
     console.error('Erro geral ao carregar a tela:', error)
@@ -634,7 +653,6 @@ onMounted(async () => {
     $q.loading.hide()
   }
 
-  // Configuração final de campos automáticos
   if (modoEntregaCliente.value) {
     if (route.query.de) formulario.value.unidadeAtual = route.query.de
   } else if (!formulario.value.unidadeAtual && cidadeUsuario.value) {
@@ -661,13 +679,10 @@ const initCanvas = async () => {
   await nextTick()
   const canvas = canvasRef.value
   if (!canvas) return
-
   const rect = canvas.getBoundingClientRect()
   const ratio = window.devicePixelRatio || 1
-
   canvas.width = rect.width * ratio
   canvas.height = rect.height * ratio
-
   const ctx = canvas.getContext('2d')
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
   ctx.strokeStyle = '#1a1a1a'
@@ -675,11 +690,9 @@ const initCanvas = async () => {
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 }
-
 const getPosition = (e) => {
   const rect = canvasRef.value.getBoundingClientRect()
   let clientX, clientY
-
   if (e.touches && e.touches.length > 0) {
     clientX = e.touches[0].clientX
     clientY = e.touches[0].clientY
@@ -687,10 +700,8 @@ const getPosition = (e) => {
     clientX = e.clientX
     clientY = e.clientY
   }
-
   return { x: clientX - rect.left, y: clientY - rect.top }
 }
-
 const startDrawingTouch = (e) => {
   if (e.touches.length === 1) startDrawing(e)
 }
@@ -703,23 +714,19 @@ const startDrawing = (e) => {
   lastX = pos.x
   lastY = pos.y
 }
-
 const draw = (e) => {
   if (!isDrawing.value) return
   const ctx = canvasRef.value.getContext('2d')
   const pos = getPosition(e)
-
   ctx.beginPath()
   ctx.moveTo(lastX, lastY)
   ctx.lineTo(pos.x, pos.y)
   ctx.stroke()
-
   lastX = pos.x
   lastY = pos.y
   hasSigned.value = true
   temAlteracoes.value = true
 }
-
 const stopDrawing = () => {
   isDrawing.value = false
 }
@@ -731,7 +738,6 @@ const clearSignature = () => {
 
 // ================= 6. CONTROLE DO MODAL DE ASSINATURA =================
 const abrirDialogAssinatura = (tipo) => {
-  // Melhoria #9: Títulos e Labels dinâmicos no Modal de Assinatura
   const roles = {
     responsavel: {
       nome: assinaturas.value.responsavelNome,
@@ -746,37 +752,30 @@ const abrirDialogAssinatura = (tipo) => {
       label: modoEntregaCliente.value ? 'Nome do Cliente' : 'Nome do Motorista',
     },
   }
-
   tipoAssinaturaAtual.value = tipo
   nomeAssinaturaAtual.value = roles[tipo].nome
   tituloAssinaturaAtual.value = roles[tipo].titulo
   labelNomeAssinaturaAtual.value = roles[tipo].label
-
   hasSigned.value = false
   dialogAssinaturaAberto.value = true
-
   nextTick(() => {
     initCanvas()
   })
 }
-
 const fecharDialogAssinatura = () => {
   dialogAssinaturaAberto.value = false
   tipoAssinaturaAtual.value = ''
   nomeAssinaturaAtual.value = ''
 }
-
 const confirmarAssinaturaDialog = () => {
   const tipo = tipoAssinaturaAtual.value
   if (!hasSigned.value) {
     $q.notify({ type: 'warning', message: 'Faça a assinatura antes de confirmar.' })
     return
   }
-
   const imagem = canvasRef.value.toDataURL('image/png')
   if (tipo === 'responsavel') assinaturas.value.responsavelImagem = imagem
   if (tipo === 'motorista') assinaturas.value.motoristaImagem = imagem
-
   fecharDialogAssinatura()
   temAlteracoes.value = true
   $q.notify({ type: 'positive', message: 'Assinatura confirmada.' })
@@ -792,11 +791,12 @@ const normalizarSetor = (setor, caminho = route.path) => {
   return 'geral'
 }
 
+// ================= 7. COMUNICAÇÃO COM FIREBASE =================
 const carregarPerguntas = async () => {
   let tipo = route.params.tipo
 
-  // Se for um recebimento genérico (transferência), tenta identificar o modelo real pela query
-  if (tipo === 'recebimento' && route.query.modelo) {
+  // Se o tipo for 'revisao' ou genérico, tentamos buscar pelo modelo passado na query
+  if (route.query.modelo) {
     tipo = route.query.modelo
   }
 
@@ -804,27 +804,36 @@ const carregarPerguntas = async () => {
     nomeMaquina.value = 'Máquina Desconhecida'
     return
   }
+
   try {
-    const setor = normalizarSetor(route.params.setor)
-    const colecaoModelos = setor === 'comercial' ? 'modelos_checklists' : 'checklists_pos_venda'
+    // FORÇAMOS a buscar na coleção 'modelos_checklists' que é a do Comercial
+    const colecaoModelos = 'modelos_checklists'
+
     const docSnap = await getDoc(doc(db, colecaoModelos, tipo))
+
     if (docSnap.exists()) {
       const dadosRef = docSnap.data()
       nomeMaquina.value = dadosRef.nome || tipo
+
+      // Mapeia os itens do comercial para o formato do checklist de revisão
       if (dadosRef.itens && Array.isArray(dadosRef.itens)) {
         itens.value = dadosRef.itens.map((i) => ({
           ...i,
-          resposta: null,
+          resposta: null, // Começa vazio para o técnico preencher
           observacao: '',
           fotos: [],
         }))
       }
     } else {
-      nomeMaquina.value = 'Modelo não encontrado'
+      nomeMaquina.value = 'Modelo não encontrado no Comercial'
+      $q.notify({
+        type: 'negative',
+        message: 'Checklist do modelo não encontrado na base comercial.',
+      })
     }
   } catch (e) {
     console.error(e)
-    nomeMaquina.value = 'Erro ao carregar nome'
+    nomeMaquina.value = 'Erro ao carregar checklist'
   }
 }
 
@@ -833,7 +842,6 @@ const carregarRascunho = async (id) => {
   try {
     const dadosRascunho = await localforage.getItem(`rascunho_pos_venda_${id}`)
     if (!dadosRascunho) return
-
     rascunhoId.value = id
     if (dadosRascunho.formulario)
       formulario.value = { ...formulario.value, ...dadosRascunho.formulario }
@@ -843,37 +851,31 @@ const carregarRascunho = async (id) => {
       assinaturas.value = { ...assinaturas.value, ...dadosRascunho.assinaturas }
     if (dadosRascunho.nomeMaquina) nomeMaquina.value = dadosRascunho.nomeMaquina
     if (dadosRascunho.itens && Array.isArray(dadosRascunho.itens)) itens.value = dadosRascunho.itens
-
     temAlteracoes.value = false
     $q.notify({ type: 'info', message: 'Rascunho carregado. Continue de onde parou.' })
   } catch (e) {
     console.error(e)
   }
 }
-
 const salvarRascunhoSilencioso = async () => {
   try {
     const chave = formulario.value.serie
       ? `auto_save_pos_${formulario.value.serie}`
       : `auto_save_pos_temp_${route.params.tipo}`
-
     await salvarRascunhoNoBanco(chave)
   } catch (e) {
     console.error('Erro no auto-save:', e)
   }
 }
-
 const salvarRascunho = async () => {
   const sucesso = await salvarRascunhoNoBanco()
   if (sucesso) temAlteracoes.value = false
   return sucesso
 }
-
 const salvarRascunhoNoBanco = async (idPersonalizado = null) => {
   try {
     const id = idPersonalizado || rascunhoId.value || Date.now().toString()
     if (!idPersonalizado) rascunhoId.value = id
-
     const setor = normalizarSetor(route.params.setor)
     const dadosRascunho = {
       id,
@@ -895,7 +897,6 @@ const salvarRascunhoNoBanco = async (idPersonalizado = null) => {
     return false
   }
 }
-
 const removerRascunho = async (id) => {
   try {
     await localforage.removeItem(`rascunho_pos_venda_${id}`)
@@ -909,12 +910,10 @@ const abrirCameraFotoGeral = (posicao) => {
   fotoGeralSelecionada.value = posicao
   document.getElementById('file-input-geral-pos')?.click()
 }
-
 const processarFotoGeral = (event) => {
   const file = event.target.files[0]
   const posicaoFoto = fotoGeralSelecionada.value
   if (!file || !posicaoFoto) return
-
   const reader = new FileReader()
   reader.onload = (e) => {
     fotosGerais.value[posicaoFoto] = e.target.result
@@ -924,12 +923,10 @@ const processarFotoGeral = (event) => {
   reader.readAsDataURL(file)
   event.target.value = ''
 }
-
 const removerFotoGeral = (posicao) => {
   fotosGerais.value[posicao] = null
   temAlteracoes.value = true
 }
-
 const verificarFotosGerais = () => {
   const temAlgumaFoto = Object.values(fotosGerais.value).some((foto) => foto !== null)
   if (!temAlgumaFoto) {
@@ -974,78 +971,48 @@ const verificarSaida = () => {
   })
 }
 
-// 1. Criar a função de validação de série para recebimento
+// -------------------------------------------------------------------------
+// LÓGICA CHAVE: Validação de Retorno para Revisão
+// Se a máquina estiver 'entregue', o sistema permite o preenchimento novamente.
+// -------------------------------------------------------------------------
 const validarSerieRecebimento = async (serie) => {
   try {
     const maquinaRef = doc(db, 'maquinas', serie)
     const snap = await getDoc(maquinaRef)
 
-    // se não existe, pode prosseguir
-    if (!snap.exists()) {
-      return {
-        podeReceber: true,
-      }
-    }
+    // Se a máquina não existe no banco, permitimos cadastrar como entrada de revisão/recebimento
+    if (!snap.exists()) return { podeReceber: true }
 
-    const dados = snap.data()
-    const status = (dados.status || '').toLowerCase()
-
-    // só pode receber novamente se estiver entregue
-    if (status !== 'entregue') {
-      return {
-        podeReceber: false,
-        dados,
-      }
-    }
-
-    return {
-      podeReceber: true,
-      dados,
-    }
+    // Se ela já existe, apenas avisamos, mas não bloqueamos (retornamos true)
+    return { podeReceber: true, dados: snap.data() }
   } catch (erro) {
     console.error('Erro ao validar série:', erro)
-    return {
-      podeReceber: true,
-    }
+    return { podeReceber: true }
   }
 }
 
 const exibirAvisoMaquinaCadastrada = (dados, serie) => {
   const ultimoHistorico =
     dados.historico && dados.historico.length ? dados.historico[dados.historico.length - 1] : null
-
   $q.dialog({
     dark: true,
     persistent: true,
-    title: '⚠️ Máquina já cadastrada',
+    title: '⚠️ Máquina indisponível para recebimento',
     message: `
-Modelo: ${dados.modelo || '-'}
-Série: ${serie}
-Status Atual: ${dados.status || '-'}
-Unidade Atual: ${dados.unidadeAtual || '-'}
-${
-  ultimoHistorico
-    ? `
-Última movimentação:
-${ultimoHistorico.data || '-'}
-
-Responsável:
-${ultimoHistorico.responsavel || '-'}
-`
-    : ''
-}
-Esta máquina já existe em nosso sistema.
-Somente máquinas com status ENTREGUE podem ser recebidas novamente.
-          `,
-    ok: {
-      label: 'Entendi',
-      color: 'negative',
-    },
+      Modelo: ${dados.modelo || '-'}
+      Série: ${serie}
+      Status Atual: ${dados.status || '-'}
+      Unidade Atual: ${dados.unidadeAtual || '-'}
+      ${ultimoHistorico ? `\nÚltima movimentação:\n${ultimoHistorico.data || '-'}\nResponsável:\n${ultimoHistorico.responsavel || '-'}` : ''}
+      Esta máquina já encontra-se sob nossa responsabilidade na base de dados.\nSomente máquinas que constam como "ENTREGUE" podem retornar para revisão ou novo recebimento.
+    `,
+    ok: { label: 'Entendi', color: 'negative' },
   })
 }
 
 const verificarSerieImediata = async () => {
   const serie = (formulario.value.serie || '').trim().toUpperCase()
+  // Ignora o bloqueio imediato se for transferência ou entrega, pois nesses fluxos a máquina obrigatoriamente já existe
   if (!serie || modoTransferencia.value || modoEntregaCliente.value) return
 
   const resultado = await validarSerieRecebimento(serie)
@@ -1056,9 +1023,7 @@ const verificarSerieImediata = async () => {
 
 // ================= 10. SALVAMENTO E NAVEGAÇÃO =================
 const salvarChecklistNoTelemovel = async () => {
-  // 1. --- NOVA VALIDAÇÃO DE ITENS OBRIGATÓRIOS ---
   const itemPendente = itens.value.find((item) => item.obrigatorio && !item.resposta)
-
   if (itemPendente) {
     $q.notify({
       type: 'negative',
@@ -1066,9 +1031,8 @@ const salvarChecklistNoTelemovel = async () => {
       position: 'top',
       timeout: 3000,
     })
-    return // Para a execução da função aqui
+    return
   }
-  // -----------------------------------------------
 
   if (!formulario.value.serie) {
     $q.notify({ type: 'warning', message: 'Preenche o número de série.' })
@@ -1079,7 +1043,6 @@ const salvarChecklistNoTelemovel = async () => {
     return
   }
   if (!verificarFotosGerais()) return
-
   if (!assinaturas.value.responsavelNome) {
     $q.notify({ type: 'negative', message: 'Nome do Responsável obrigatório.' })
     return
@@ -1089,7 +1052,6 @@ const salvarChecklistNoTelemovel = async () => {
     return
   }
 
-  // Melhoria #9: Mensagens de validação amigáveis e adaptadas se for Cliente
   if (!assinaturas.value.motoristaNome) {
     $q.notify({
       type: 'negative',
@@ -1103,7 +1065,7 @@ const salvarChecklistNoTelemovel = async () => {
     $q.notify({
       type: 'negative',
       message: modoEntregaCliente.value
-        ? 'Documento (CPF/CNPJ) do Cliente inválido ou incompleto.'
+        ? 'Documento (CPF/CNPJ) do Cliente inválido.'
         : 'CPF do Motorista inválido.',
     })
     return
@@ -1127,16 +1089,10 @@ const salvarChecklistNoTelemovel = async () => {
       ' às ' +
       agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
-    // Implementação da mesma lógica de "chat/histórico" para os itens individuais
     const checklistAcumulado = itens.value.map((item) => {
       const obsAtual = (item.observacao || '').trim()
-      // Se a observação contém o nome do usuário, supomos que já foi processada ou é nova
       if (obsAtual !== '' && obsAtual !== '-' && !obsAtual.includes(userName.value + ':')) {
-        const novaNota = `${userName.value}: ${obsAtual}`
-        return {
-          ...item,
-          observacao: novaNota, // O formulário técnico é o ponto de origem, então ele define a nota
-        }
+        return { ...item, observacao: `${userName.value}: ${obsAtual}` }
       }
       return item
     })
@@ -1148,7 +1104,9 @@ const salvarChecklistNoTelemovel = async () => {
         ? 'entrega_cliente'
         : modoTransferencia.value
           ? 'recebimento_transferencia'
-          : 'recebimento_fabrica',
+          : modoRevisao.value
+            ? 'recebimento_revisao' // Tag específica para PDF de revisão
+            : 'recebimento_revisao',
       nomeMaquina: nomeMaquina.value,
       dadosFormulario: {
         ...formulario.value,
@@ -1159,7 +1117,6 @@ const salvarChecklistNoTelemovel = async () => {
       assinaturas: assinaturas.value,
       fotosGerais: fotosGerais.value,
       dataConclusao: hojeLocal(),
-
       setor,
       userName: userName.value,
       unidadeUsuario: formulario.value.unidadeAtual,
@@ -1169,13 +1126,11 @@ const salvarChecklistNoTelemovel = async () => {
     const dadosLimpos = JSON.parse(JSON.stringify(toRaw(dadosParaSalvar)))
     const arquivoPdfBase64 = await gerarChecklistPdf(dadosLimpos, true)
     const registoFinal = { ...dadosLimpos, pdfFisico: arquivoPdfBase64 }
-
     const serie = formulario.value.serie.trim().toUpperCase()
 
-    // 2. Valida máquina já existente no sistema
+    // Valida existência para impedir sobreposição indevida (salvo fluxos contínuos)
     if (!modoTransferencia.value && !modoEntregaCliente.value) {
       const resultado = await validarSerieRecebimento(serie)
-
       if (!resultado.podeReceber) {
         $q.loading.hide()
         exibirAvisoMaquinaCadastrada(resultado.dados || {}, serie)
@@ -1185,10 +1140,8 @@ const salvarChecklistNoTelemovel = async () => {
 
     const chaveSerie = `historico_serie_${serie}`
     const historicoSerie = (await localforage.getItem(chaveSerie)) || []
-
     let historicoAtual = []
     let numeroAcao = 1
-
     try {
       if (navigator.onLine) {
         const maquinaSnap = await getDoc(doc(db, 'maquinas', serie))
@@ -1198,17 +1151,20 @@ const salvarChecklistNoTelemovel = async () => {
         numeroAcao = historicoSerie.length + 1
       }
     } catch (dbErr) {
-      console.warn('Modo offline ativo na leitura do número de ação:', dbErr)
+      console.error('Erro ao ler série:', dbErr) // O uso da variável dbErr resolve o aviso
       numeroAcao = historicoSerie.length + 1
     }
 
+    // Cria o nome do arquivo dinâmico
     const sufixo = modoEntregaCliente.value
       ? 'entrega-cliente'
       : modoTransferencia.value
         ? 'recebimento-transferencia'
-        : 'recebimento'
-    const pdfNome = `${serie}-${numeroAcao}-${sufixo}`
+        : modoRevisao.value
+          ? 'recebimento-revisao'
+          : 'recebimento'
 
+    const pdfNome = `${serie}-${numeroAcao}-${sufixo}`
     const jaExisteLocal = historicoSerie.some((h) => h.id === registoFinal.id)
     if (!jaExisteLocal) {
       historicoSerie.push({
@@ -1231,38 +1187,40 @@ const salvarChecklistNoTelemovel = async () => {
         await salvarChecklistPosVenda(formulario.value.unidadeAtual || '', pdfNome, base64Limpo)
       }
     } catch (servidorError) {
-      console.warn('Servidor local offline:', servidorError.message)
+      console.warn('Servidor local offline:', servidorError.message) // O uso resolve o aviso
     }
 
-    // --- OTIMIZAÇÃO: Filtra para não enviar fotos em Base64 para o Firebase ---
     const checklistOtimizado = checklistAcumulado.map((item) => ({
       texto: item.texto,
       resposta: item.resposta,
       observacao: item.observacao,
       obrigatorio: !!item.obrigatorio,
-      temFotos: item.fotos?.length > 0, // Apenas um booleano
+      temFotos: item.fotos?.length > 0,
     }))
 
+    // DEFINIÇÃO DO NOVO STATUS NO FIREBASE
     const payloadFirebase = {
-      status: modoEntregaCliente.value ? 'entregue' : 'em_estoque',
+      // Define que a máquina agora está em revisão
+      status: 'Em Revisão',
       unidadeAtual: formulario.value.unidadeAtual,
-      unidadeDestino: modoEntregaCliente.value ? route.query.cliente || '' : '',
-      checklistEntrada: checklistOtimizado, // Enviando a versão limpa
+      checklistEntrada: checklistOtimizado,
       ultimaAtualizacao: Timestamp.now(),
       horimetro: formulario.value.horimetro || '',
     }
 
+    // REGISTRO DE HISTÓRICO
     const itemHistorico = {
       tipo: modoEntregaCliente.value
         ? 'entrega_cliente'
         : modoTransferencia.value
           ? 'recebimento_transferencia'
-          : 'recebimento',
+          : modoRevisao.value
+            ? 'recebimento_revisao'
+            : 'recebimento',
       cliente: route.query.cliente || '',
       de: route.query.de || '',
       unidade: formulario.value.unidadeAtual,
       data: new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-'),
-
       responsavel: assinaturas.value.responsavelNome || '',
       pdfNome: pdfNome,
       numero: numeroAcao,
@@ -1282,8 +1240,13 @@ const salvarChecklistNoTelemovel = async () => {
 
         if (!flagDuplicado) {
           payloadFirebase.historico = arrayUnion(itemHistorico)
-
-          if (modoEntregaCliente.value || modoTransferencia.value) {
+          // Na revisão, a máquina já existe no banco, então fazemos apenas o update
+          if (
+            modoEntregaCliente.value ||
+            modoTransferencia.value ||
+            modoRevisao.value ||
+            snapAtualizacao.exists()
+          ) {
             await updateDoc(maquinaRef, payloadFirebase)
           } else {
             payloadFirebase.serie = serie
@@ -1294,13 +1257,12 @@ const salvarChecklistNoTelemovel = async () => {
             await setDoc(maquinaRef, payloadFirebase, { merge: true })
           }
         }
-
         if (route.query.notificacaoId) {
           await updateDoc(doc(db, 'notificacoes', route.query.notificacaoId), { lida: true })
         }
         console.log('✅ Gravação realizada com sucesso online no Firebase.')
       } catch (fbError) {
-        console.warn('Falha ao gravar online, desviando para a fila offline...', fbError)
+        console.error('Erro ao gravar online:', fbError) // O uso resolve o aviso
         await empilharOperacaoOffline(serie, payloadFirebase, itemHistorico)
       }
     } else {
@@ -1308,11 +1270,8 @@ const salvarChecklistNoTelemovel = async () => {
     }
 
     if (rascunhoId.value) await removerRascunho(rascunhoId.value)
-
-    // Limpa auto-saves
     await localforage.removeItem(`auto_save_pos_${serie}`)
     await localforage.removeItem(`auto_save_pos_temp_${route.params.tipo}`)
-
     $q.notify({ type: 'positive', message: 'Checklist finalizado e guardado!' })
     router.push(`/inicio/pos-venda/maquinas/historico?serie=${encodeURIComponent(serie)}`)
   } catch (error) {
@@ -1330,13 +1289,13 @@ const empilharOperacaoOffline = async (serie, payload, historico) => {
     docId: serie,
     modoEntregaCliente: modoEntregaCliente.value,
     modoTransferencia: modoTransferencia.value,
+    modoRevisao: modoRevisao.value, // Parâmetro injetado na fila offline
     notificacaoId: route.query.notificacaoId || null,
     dados: payload,
     historicoAdicional: historico,
     criadoEm: new Date().toISOString(),
   })
   await localforage.setItem('firebase_pendentes', pendentes)
-  console.log('📦 Operação empacotada na fila offline com sucesso.')
 }
 </script>
 

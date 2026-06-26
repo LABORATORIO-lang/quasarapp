@@ -121,7 +121,7 @@ const perfilLabels = {
   gerente_comercial: 'Gerente Comercial',
   gerente_pos_venda: 'Gerente Pós-Venda',
   master: 'Master',
-  motorista: ['logistica'],
+  motorista: 'Motorista',
 }
 
 const perfilLabel = computed(() => {

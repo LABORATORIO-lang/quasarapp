@@ -118,13 +118,7 @@
           <template v-for="(item, idx) in dados.checklistEntrada" :key="idx">
             <q-item>
               <q-item-section side>
-                <q-checkbox
-                  v-model="respostasCliente[idx]"
-                  true-value="VERIFICADO"
-                  false-value=""
-                  color="orange-8"
-                  dark
-                />
+                <q-checkbox v-model="respostasCliente[idx]" color="orange-8" dark />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-white text-weight-medium">{{ item.texto }}</q-item-label>
@@ -171,6 +165,12 @@
             color="orange-8"
             bg-color="grey-10"
             mask="###.###.###-##"
+            unmasked-value
+            :rules="[
+              (val) => !!val || 'CPF é obrigatório',
+              (val) => validarCPF(val?.replace(/\D/g, '')) || 'CPF inválido. Verifique os números.',
+            ]"
+            lazy-rules
           />
         </q-card-section>
       </q-card>
@@ -446,7 +446,7 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { doc, getDoc, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
-import { getAuth /*signInAnonymously*/ } from 'firebase/auth'
+import { getAuth, signInAnonymously } from 'firebase/auth'
 import { gerarChecklistPdf } from 'src/utils/pdfGenerator'
 import { salvarTransferenciaPosVenda, verificarStatusServidor } from 'src/utils/ServidorApi'
 
@@ -484,23 +484,31 @@ const totalItens = computed(() => {
 })
 
 const itensVerificados = computed(() => {
-  return Object.values(respostasCliente.value).filter((item) => item === 'VERIFICADO').length
+  return Object.values(respostasCliente.value).filter((item) => item === true).length
 })
 
 const podeConfirmar = computed(() => {
   const docLimpo = cpfCnpjRecebedor.value.replace(/\D/g, '')
-
+  console.log('CPF limpo:', docLimpo, 'tamanho:', docLimpo.length)
   const nomeOk = nomeRecebedor.value.trim().length > 2
   const docOk = validarCPF(docLimpo)
   const motoristaOk = nomeMotoristaTerceiro.value.trim().length > 2
   const clienteAssinado = assinado.value
   const motoristaAssinado = assinadoMotorista.value
   const fotosOk = Object.values(fotosGerais.value).every((f) => f)
-
   const lista = dados.value.checklistEntrada || []
+  const todosVerificados = lista.every((_, idx) => respostasCliente.value[idx] === true)
 
-  const todosVerificados = lista.every((_, idx) => {
-    return respostasCliente.value[idx] === 'VERIFICADO'
+  console.log({
+    nomeOk,
+    docOk,
+    motoristaOk,
+    clienteAssinado,
+    motoristaAssinado,
+    fotosOk,
+    todosVerificados,
+    respostas: { ...respostasCliente.value },
+    fotos: { ...fotosGerais.value },
   })
 
   return (
@@ -731,9 +739,10 @@ const confirmarRecebimento = async () => {
         respostasChecklist: (dados.value.checklistEntrada || []).map((item, index) => ({
           texto: item.texto,
           resposta: item.resposta,
-          respostaCliente: respostasCliente.value[index] || '-',
+          respostaCliente: respostasCliente.value[index] === true ? 'VERIFICADO' : '-',
           observacao: observacoesCliente.value[index] || item.observacao || '-',
         })),
+
         assinaturas: {
           responsavelNome: nomeRecebedor.value,
           responsavelImagem: assinaturaImagem.value,
@@ -777,9 +786,8 @@ const confirmarRecebimento = async () => {
 
 onMounted(async () => {
   try {
-    // const auth = getAuth()
-    //
-    // if (!auth.currentUser) await signInAnonymously(auth)
+    const auth = getAuth()
+    if (!auth.currentUser) await signInAnonymously(auth)
 
     const token = route.params.token
     if (!token) {
@@ -803,11 +811,12 @@ onMounted(async () => {
     if (d.checklistEntrada && Array.isArray(d.checklistEntrada)) {
       d.checklistEntrada.forEach((_, idx) => {
         observacoesCliente.value[idx] = observacoesCliente.value[idx] || ''
-        respostasCliente.value[idx] = respostasCliente.value[idx] || ''
+        respostasCliente.value[idx] = respostasCliente.value[idx] === true
       })
     }
-    if (d.cliente) nomeRecebedor.value = d.cliente
-    if (d.cpfCnpj) cpfCnpjRecebedor.value = d.cpfCnpj
+
+    /*if (d.cliente) nomeRecebedor.value = d.cliente
+    if (d.cpfCnpj) cpfCnpjRecebedor.value = d.cpfCnpj*/
     if (d.motorista) nomeMotoristaTerceiro.value = d.motorista
 
     await nextTick()

@@ -9,13 +9,20 @@ const routes = [
     path: '/inicio',
     component: () => import('layouts/MainLayout.vue'),
     children: [
-      { path: '', component: () => import('pages/telas/inicio/InicioPage.vue') },
+      {
+        path: '',
+        component: () => import('pages/telas/inicio/InicioPage.vue'),
+      },
 
-      // Páginas dos Setores
+      {
+        path: 'maquinas/revisao',
+        component: () => import('pages/telas/pos_venda/checklistnovas/RevisaoMaquina.vue'),
+        meta: { perfis: ['adm_pos_venda', 'gerente_pos_venda', 'master'] },
+      },
+
       {
         path: 'comercial',
         component: () => import('pages/telas/comercial/ComercialPage.vue'),
-        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'admin'] },
       },
       {
         path: 'comercial/consorcio',
@@ -39,6 +46,7 @@ const routes = [
       },
 
       // Pós-Venda
+
       {
         path: 'pos-venda',
         component: () => import('pages/telas/pos_venda/PosVendaMenu.vue'),

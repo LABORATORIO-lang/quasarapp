@@ -97,9 +97,14 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
 
   const modoPosVenda = !!(assinaturas?.responsavelNome || assinaturas?.motoristaNome)
   const tipoPdf = dadosDaTela.tipoPdf || dadosDaTela.tipo || ''
-
   let tituloPdf = 'RELATÓRIO DE AVALIAÇÃO'
-  if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
+  console.log('O tipoPdf sendo processado é:', tipoPdf)
+  // 1. Verificações específicas vêm SEMPRE primeiro
+  if (tipoPdf === 'recebimento_revisao') {
+    tituloPdf = 'RECEBIMENTO PARA REVISÃO'
+  }
+  // 2. Agora as verificações genéricas
+  else if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
     tituloPdf = 'RECEBIMENTO DE FÁBRICA'
   } else if (tipoPdf === 'recebimento_usada') {
     tituloPdf = 'RECEBIMENTO NA UNIDADE'

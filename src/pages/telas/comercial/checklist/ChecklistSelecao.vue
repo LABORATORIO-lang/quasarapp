@@ -4,9 +4,12 @@
       <div class="row items-center q-gutter-sm">
         <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
         <div>
-          <div class="text-h5 text-weight-bold">Selecione o Equipamento</div>
+          <div class="text-h5 text-weight-bold">
+            {{ isRevisao ? 'Máquina para Revisão' : 'Selecione o Equipamento' }}
+          </div>
           <div class="text-caption text-grey-5">
-            Escolha uma das máquinas cadastradas para iniciar a vistoria
+            Escolha qual modelo de máquina você vai
+            {{ isRevisao ? 'receber para revisão' : 'iniciar a vistoria' }}
           </div>
         </div>
       </div>
@@ -14,7 +17,11 @@
 
     <div class="row q-col-gutter-md">
       <div v-for="modelo in modelos" :key="modelo.id" class="col-12 col-sm-4">
-        <q-card class="bg-grey-9 text-white custom-card" clickable @click="iniciarChecklist(modelo.id)">
+        <q-card
+          class="bg-grey-9 text-white custom-card"
+          clickable
+          @click="iniciarChecklist(modelo.id)"
+        >
           <q-card-section class="q-pa-sm">
             <div class="row items-center no-wrap q-col-gutter-sm">
               <div class="col-auto">
@@ -42,16 +49,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
-import localforage from 'localforage' // <-- IMPORTANTE: Adicionado para podermos aceder à memória
+import localforage from 'localforage'
 
 const $q = useQuasar()
 const router = useRouter()
+const route = useRoute() // <-- Adicionado para ler a URL
 const modelos = ref([])
+
+// Variável que checa se estamos no modo de revisão
+const isRevisao = computed(() => route.query.modo === 'revisao')
 
 const formatarTitulo = (slug) => (slug ? slug.replace('_', ' ').replace('-', ' ') : '')
 
@@ -84,15 +95,20 @@ const carregarModelos = async () => {
   }
 }
 
-// <-- AQUI ESTÁ A MÁGICA: Transformei em "async" e coloquei a vassoura
 const iniciarChecklist = async (idModelo) => {
-  // 1. A VASSOURA: Limpa as gavetas de assinaturas antigas
+  // Limpa as gavetas de assinaturas antigas
   await localforage.removeItem('assinatura_vendedor')
   await localforage.removeItem('assinatura_cliente')
   await localforage.removeItem('assinatura_tecnico')
 
-  // 2. Agora sim, viaja para o checklist novinho em folha
-  router.push(`/inicio/comercial/checklist/formulario/${idModelo}`)
+  // DESVIO INTELIGENTE DE ROTA:
+  if (isRevisao.value) {
+    // Se for modo revisão, manda para a tela nova que criamos, passando o modelo na URL
+    router.push(`/inicio/maquinas/revisao?modelo=${idModelo}`)
+  } else {
+    // Se for o fluxo normal do comercial, mantém a rota antiga
+    router.push(`/inicio/comercial/checklist/formulario/${idModelo}`)
+  }
 }
 
 onMounted(carregarModelos)
