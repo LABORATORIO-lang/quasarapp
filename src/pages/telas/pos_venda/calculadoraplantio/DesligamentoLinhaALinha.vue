@@ -9,7 +9,7 @@
       <q-input
         v-model.number="plantWidth"
         type="number"
-        label="Largura da barra (m)"
+        label="Largura da Plantadeira (m)"
         dark
         filled
         color="orange-8"

@@ -34,27 +34,6 @@
         </q-card-section>
       </q-card>
 
-      <!-- Checklist Starpes -->
-      <q-card
-        v-if="temAcesso('starpes')"
-        clickable
-        class="compact-card bg-grey-9 text-white"
-        @click="router.push('/inicio/pos-venda/starpes')"
-      >
-        <q-card-section class="row items-center no-wrap q-pa-sm">
-          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
-            <q-icon name="assignment_turned_in" size="20px" />
-          </q-avatar>
-          <div class="q-ml-md col">
-            <div class="text-subtitle1 text-weight-bold text-orange-8">Checklist Starpes</div>
-            <div class="text-caption text-grey-5">
-              Preenchimento de inspeções para envio à fábrica
-            </div>
-          </div>
-          <q-icon name="chevron_right" color="grey-6" size="24px" />
-        </q-card-section>
-      </q-card>
-
       <!-- Cálculo de Plantio -->
       <q-card
         v-if="temAcesso('calculo_plantio')"
@@ -75,6 +54,41 @@
           <q-icon name="chevron_right" color="grey-6" size="24px" />
         </q-card-section>
       </q-card>
+      <q-card
+        v-if="temAcesso('os_pos_venda')"
+        clickable
+        class="compact-card bg-grey-9 text-white"
+        @click="router.push('/inicio/pos-venda/nova-os')"
+      >
+        <q-card-section class="row items-center no-wrap q-pa-sm">
+          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+            <q-icon name="assignment" size="20px" />
+          </q-avatar>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold text-orange-8">Criar Ordem de Serviço</div>
+            <div class="text-caption text-grey-5">Gerar O.S. e notificar técnico</div>
+          </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
+
+      <q-card
+        v-if="temAcesso('starpes')"
+        clickable
+        class="compact-card bg-grey-9 text-white"
+        @click="router.push('/inicio/pos-venda/starpes-dashboard')"
+      >
+        <q-card-section class="row items-center no-wrap q-pa-sm">
+          <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
+            <q-icon name="checklist_rtl" size="20px" />
+          </q-avatar>
+          <div class="q-ml-md col">
+            <div class="text-subtitle1 text-weight-bold text-orange-8">Checklist Starpes</div>
+            <div class="text-caption text-grey-5">Relatórios e checklists realizados</div>
+          </div>
+          <q-icon name="chevron_right" color="grey-6" size="24px" />
+        </q-card-section>
+      </q-card>
     </div>
   </q-page>
 </template>
@@ -89,10 +103,10 @@ const perfisUsuario = ref([])
 
 const permissoes = {
   tecnico: ['starpes', 'calculo_plantio'],
-  adm_pos_venda: ['pos_venda', 'maquinas', 'logistica'],
+  adm_pos_venda: ['pos_venda', 'maquinas', 'logistica', 'starpes', 'os_pos_venda'],
   vendedor: ['comercial', 'consorcio', 'usados'],
   gerente_comercial: ['admin', 'comercial'],
-  gerente_pos_venda: ['admin', 'pos_venda', 'starpes'],
+  gerente_pos_venda: ['admin', 'pos_venda', 'starpes', 'os_pos_venda'],
 }
 
 const temAcesso = (modulo) => {

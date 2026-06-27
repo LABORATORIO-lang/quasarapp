@@ -6,9 +6,7 @@
         <q-btn flat round icon="arrow_back" color="orange-8" @click="$router.go(-1)" />
         <div>
           <div class="text-h5 text-weight-bold">Checklist Starpes</div>
-          <div class="text-caption text-grey-5">
-            Selecione a categoria de inspeção
-          </div>
+          <div class="text-caption text-grey-5">Selecione a categoria de inspeção</div>
         </div>
       </div>
     </div>
@@ -63,30 +61,29 @@ const router = useRouter()
 const categorias = ref([])
 const loading = ref(false)
 
+// Substitua a função carregarCategorias no seu StarpesMenu.vue
 const carregarCategorias = async () => {
   loading.value = true
   try {
-    const querySnapshot = await getDocs(collection(db, 'checklists_starpes'))
+    // Mudamos a coleção para 'modelos_starpes'
+    const querySnapshot = await getDocs(collection(db, 'modelos_starpes'))
     const lista = []
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data()
       lista.push({
         id: docSnap.id,
-        nome: data.nome || docSnap.id,
-        descricao: data.descricao || `Checklist de inspeção para ${data.nome || docSnap.id}`,
+        nome: data.tipo_maquina || 'Modelo sem nome', // Pega o tipo de máquina
+        itens: data.itens_verificacao || [], // Já traz os itens!
       })
     })
-    // Ordenar alfabeticamente
-    lista.sort((a, b) => a.nome.localeCompare(b.nome))
     categorias.value = lista
   } catch (e) {
-    console.error('Erro ao buscar categorias:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao carregar categorias do Firebase.' })
+    console.error('Erro ao buscar modelos:', e)
+    $q.notify({ type: 'negative', message: 'Erro ao carregar modelos.' })
   } finally {
     loading.value = false
   }
 }
-
 const iniciarChecklist = async (idCategoria) => {
   // Limpa assinaturas antigas
   await localforage.removeItem('starpes_assinatura_tecnico')

@@ -91,17 +91,22 @@ const routes = [
         meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
 
-      // --- Rotas do Checklist Starpes (Pós-Venda) ---
+      // --- ROTAS DO MÓDULO DE O.S. E STARPES ---
       {
-        path: 'pos-venda/starpes',
-        component: () => import('pages/telas/pos_venda/checkliststarpes/StarpesMenu.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
+        path: 'pos-venda/nova-os',
+        component: () => import('pages/telas/pos_venda/os/CriarOS.vue'),
+        meta: { perfis: ['adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
-        path: 'pos-venda/starpes/formulario/:categoria',
-        component: () => import('pages/telas/pos_venda/checkliststarpes/StarpesForm.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
+        path: 'pos-venda/os/detalhes/:id',
+        component: () => import('pages/telas/pos_venda/os/DetalhesOS.vue'),
+        meta: { perfis: ['adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master'] },
       },
+      /*{
+        path: 'pos-venda/starpes-dashboard',
+        component: () => import('pages/telas/pos_venda/checkliststarpes/StarpesDashboard.vue'),
+        meta: { perfis: ['adm_pos_venda', 'gerente_pos_venda', 'master'] },
+      },*/
 
       // --- Rotas do Checklist (Pós-Venda) ---
       {

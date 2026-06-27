@@ -19,30 +19,42 @@
     </div>
 
     <div class="row q-col-gutter-md">
-      <div v-for="categoria in categorias" :key="categoria.id" class="col-12 col-sm-4">
-        <q-card
-          class="bg-grey-9 text-white custom-card"
-          clickable
-          @click="editarCategoria(categoria.id)"
-        >
+      <div v-for="(categoria, index) in categorias" :key="categoria.id" class="col-12 col-sm-4">
+        <q-card class="bg-grey-9 text-white custom-card">
           <q-card-section class="q-pa-sm">
-            <div class="row items-center no-wrap q-col-gutter-sm">
-              <div class="col-auto">
-                <q-avatar size="36px" color="grey-10" text-color="orange-8" class="icon-box">
-                  <q-icon name="agriculture" />
-                </q-avatar>
-              </div>
-              <div class="col">
-                <div class="text-subtitle1 text-weight-bold text-capitalize">
+            <div class="row items-center no-wrap">
+              <div class="col" @click="editarCategoria(categoria.id)" style="cursor: pointer">
+                <div class="text-subtitle1 text-weight-bold text-orange-8">
                   {{ categoria.nome }}
                 </div>
-                <div class="text-caption text-grey-5 card-description">
-                  {{ categoria.maquinas?.length || 0 }} máquinas |
-                  {{ categoria.secoes?.length || 0 }} seções
+                <div class="text-caption text-grey-5">
+                  {{ categoria.secoes?.length || 0 }} seções cadastradas
                 </div>
               </div>
-              <div class="col-auto">
-                <q-icon name="edit" color="orange-8" size="20px" />
+
+              <div class="col-auto row q-gutter-xs">
+                <q-btn
+                  flat
+                  round
+                  dense
+                  color="red-5"
+                  icon="delete"
+                  size="sm"
+                  @click="solicitarExclusaoCategoria(index)"
+                >
+                  <q-tooltip>Excluir</q-tooltip>
+                </q-btn>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  color="orange-8"
+                  icon="edit"
+                  size="sm"
+                  @click="editarCategoria(categoria.id)"
+                >
+                  <q-tooltip>Editar</q-tooltip>
+                </q-btn>
               </div>
             </div>
           </q-card-section>
@@ -60,50 +72,76 @@
     />
   </q-page>
 </template>
+// Substitua o seu script setup em AdminStarpes.vue por este:
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { collection, getDocs } from 'firebase/firestore'
+import { useRouter } from 'vue-router'
+import { collection, getDocs, doc, deleteDoc } from 'firebase/firestore'
 import { db } from 'src/boot/firebase'
 
 const $q = useQuasar()
 const router = useRouter()
-const categorias = ref([])
+const modelos = ref([]) // Unificado para o nome 'modelos'
 
-const carregarCategorias = async () => {
+const carregarModelos = async () => {
   $q.loading.show()
   try {
-    const querySnapshot = await getDocs(collection(db, 'checklists_starpes'))
+    const querySnapshot = await getDocs(collection(db, 'modelos_starpes'))
     const lista = []
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data()
       lista.push({
         id: docSnap.id,
-        nome: data.nome || docSnap.id,
-        maquinas: data.maquinas || [],
-        secoes: data.secoes || [],
+        nome: data.tipo_maquina || 'Modelo sem nome',
       })
     })
-    categorias.value = lista
+    modelos.value = lista
   } catch (e) {
-    console.error('Erro ao buscar categorias:', e)
-    $q.notify({ type: 'negative', message: 'Erro ao carregar categorias do Firebase.' })
+    console.error('Erro ao buscar modelos:', e)
   } finally {
     $q.loading.hide()
   }
 }
 
-const editarCategoria = (id) => {
-  router.push(`/admin/editar/checklists_starpes/${id}`)
+const editarModelo = (idModelo) => {
+  // Aponta para a nossa rota de edição de modelos
+  router.push(`/admin/editar/modelos_starpes/${idModelo}`)
 }
 
-const adicionarCategoria = () => {
-  $q.notify({ type: 'info', message: 'Funcionalidade em desenvolvimento.' })
+const adicionarNovaMaquina = () => {
+  $q.dialog({
+    dark: true,
+    title: 'Novo Modelo de Máquina',
+    message: 'Digite o nome da nova máquina (ex: Pulverizador):',
+    prompt: { model: '', type: 'text' },
+    cancel: true,
+    ok: { label: 'Continuar', color: 'orange-8', flat: true },
+    persistent: true,
+  }).onOk((nome) => {
+    if (nome.trim()) {
+      const slug = nome.trim().toLowerCase().replace(/\s+/g, '_')
+      router.push(`/admin/editar/modelos_starpes/${slug}`)
+    }
+  })
 }
 
-onMounted(carregarCategorias)
+const solicitarExclusaoModelo = (index) => {
+  const modelo = modelos.value[index]
+  $q.dialog({
+    dark: true,
+    title: 'Excluir Modelo',
+    message: `Excluir "${modelo.nome}" permanentemente?`,
+    cancel: true,
+    ok: { label: 'Excluir', color: 'red-5', flat: true },
+  }).onOk(async () => {
+    await deleteDoc(doc(db, 'modelos_starpes', modelo.id))
+    modelos.value.splice(index, 1)
+  })
+}
+
+onMounted(carregarModelos)
 </script>
 
 <style scoped>
