@@ -27,22 +27,22 @@ const routes = [
       {
         path: 'comercial/consorcio',
         component: () => import('pages/telas/comercial/consorcio/ConsorcioCalcu.vue'),
-        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'admin'] },
+        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master'] },
       },
       {
         path: 'logistica',
         component: () => import('pages/telas/logistica/LogisticaPage.vue'),
-        meta: { perfis: ['logistica', 'motorista', 'master', 'admin'] },
+        meta: { perfis: ['logistica', 'motorista', 'master'] },
       },
       {
         path: 'logistica/entregas',
         component: () => import('pages/telas/logistica/EntregarCliente.vue'),
-        meta: { perfis: ['logistica', 'motorista', 'master', 'admin'] },
+        meta: { perfis: ['logistica', 'motorista', 'master'] },
       },
       {
         path: 'logistica/confirmar-entrega',
         component: () => import('pages/telas/logistica/ConfirmarEntregaCliente.vue'),
-        meta: { perfis: ['logistica', 'motorista', 'master', 'admin'] },
+        meta: { perfis: ['logistica', 'motorista', 'master'] },
       },
 
       // Pós-Venda
@@ -50,7 +50,7 @@ const routes = [
       {
         path: 'pos-venda',
         component: () => import('pages/telas/pos_venda/PosVendaMenu.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
 
       // Verificação pública (sem meta = aberto)
@@ -63,44 +63,44 @@ const routes = [
       {
         path: 'pos-venda/maquinas',
         component: () => import('pages/telas/pos_venda/checklistnovas/ControleMaquinas.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/receber',
         component: () => import('pages/telas/pos_venda/checklistnovas/ReceberMaquina.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/transferir',
         component: () => import('pages/telas/pos_venda/checklistnovas/TransferirMaquina.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/estoque',
         component: () => import('pages/telas/pos_venda/checklistnovas/EstoqueTransito.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/historico',
         component: () => import('pages/telas/pos_venda/checklistnovas/HistoricoSerie.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/receber-transferencia',
         component: () => import('pages/telas/pos_venda/checklistnovas/ReceberTransferencia.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
 
       // --- Rotas do Checklist Starpes (Pós-Venda) ---
       {
         path: 'pos-venda/starpes',
         component: () => import('pages/telas/pos_venda/checkliststarpes/StarpesMenu.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/starpes/formulario/:categoria',
         component: () => import('pages/telas/pos_venda/checkliststarpes/StarpesForm.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
 
       // --- Rotas do Checklist (Pós-Venda) ---
@@ -108,33 +108,33 @@ const routes = [
         path: 'pos-venda/maquinas/transferir-selecionar',
         component: () =>
           import('pages/telas/pos_venda/checklistnovas/SelecionarMaquinaTransferir.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/editar-checklist',
         component: () => import('pages/telas/pos_venda/checklistnovas/EditarChecklistMaquina.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/checklist/selecionar',
-        component: () => import('pages/telas/pos_venda/checklistnovas/ChecklistSelecao.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        component: () => import('pages/telas/pos_venda/checklistnovas/ChecklistSelecaopos.vue'),
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/checklist/rascunhos',
         component: () => import('pages/telas/pos_venda/checklistnovas/ChecklistRascunhos.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/checklist/formulario/:tipo',
         component: () => import('pages/telas/pos_venda/checklistnovas/ChecklistPosForm.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/maquinas/notificacoes',
         component: () =>
           import('src/pages/telas/pos_venda/checklistnovas/NotificacoesMaquinas.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
 
       // --- Calculadoras de Plantio ---
@@ -143,7 +143,7 @@ const routes = [
         component: () =>
           import('pages/telas/pos_venda/calculadoraplantio/CalculadoraPlantioMenu.vue'),
         meta: {
-          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master', 'admin'],
+          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master'],
         },
       },
       {
@@ -151,20 +151,20 @@ const routes = [
         component: () =>
           import('pages/telas/pos_venda/calculadoraplantio/CalibrarEmendaPlantio.vue'),
         meta: {
-          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master', 'admin'],
+          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master'],
         },
       },
       {
         path: 'pos-venda/maquinas/receber-usada',
         component: () => import('pages/telas/pos_venda/checklistnovas/ReceberUsada.vue'),
-        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master', 'admin'] },
+        meta: { perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'master'] },
       },
       {
         path: 'pos-venda/calculo-plantio/desligamento',
         component: () =>
           import('pages/telas/pos_venda/calculadoraplantio/DesligamentoLinhaALinha.vue'),
         meta: {
-          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master', 'admin'],
+          perfis: ['pos_venda', 'adm_pos_venda', 'gerente_pos_venda', 'tecnico', 'master'],
         },
       },
 
@@ -172,34 +172,35 @@ const routes = [
       {
         path: 'historico/:setor',
         component: () => import('pages/HistoricoRegistros.vue'),
-        meta: { perfis: ['master', 'admin'] },
+        meta: { perfis: ['master'] },
       },
 
       // --- Rotas do Checklist (Setor Comercial) ---
       {
         path: 'comercial/despacho-usadas',
         component: () => import('pages/telas/comercial/checklist/DespachoGerente.vue'),
-        meta: { perfis: ['comercial', 'gerente_comercial', 'master', 'admin'] },
+        meta: { perfis: ['comercial', 'gerente_comercial', 'master'] },
       },
       {
         path: 'logistica/carregar-usada',
         component: () => import('pages/telas/logistica/CarregarUsada.vue'),
-        meta: { perfis: ['logistica', 'motorista', 'master', 'admin'] },
+        meta: { perfis: ['logistica', 'motorista', 'master'] },
       },
       {
         path: 'comercial/checklist/selecionar',
         component: () => import('pages/telas/comercial/checklist/ChecklistSelecao.vue'),
-        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'admin'] },
+        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'adm_pos_venda'] },
       },
+
       {
         path: 'comercial/checklist/rascunhos',
         component: () => import('pages/telas/comercial/checklist/ChecklistRascunhos.vue'),
-        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'admin'] },
+        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master'] },
       },
       {
         path: 'comercial/checklist',
         component: () => import('pages/telas/comercial/checklist/ChecklistMenu.vue'),
-        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master', 'admin'] },
+        meta: { perfis: ['comercial', 'vendedor', 'gerente_comercial', 'master'] },
       },
       {
         path: ':setor/checklist/formulario/:tipo',
@@ -213,7 +214,6 @@ const routes = [
             'adm_pos_venda',
             'gerente_pos_venda',
             'master',
-            'admin',
           ],
         },
       },
@@ -224,7 +224,7 @@ const routes = [
   {
     path: '/admin',
     component: () => import('layouts/MainLayout.vue'),
-    meta: { perfis: ['master', 'admin'] },
+    meta: { perfis: ['master'] },
     children: [
       { path: 'master', component: () => import('pages/telas/admin/AdminModelos.vue') },
       {

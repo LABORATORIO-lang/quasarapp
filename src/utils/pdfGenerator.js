@@ -98,26 +98,30 @@ export const gerarChecklistPdf = async (dadosDaTela, retornarBase64 = false) => 
   const modoPosVenda = !!(assinaturas?.responsavelNome || assinaturas?.motoristaNome)
   const tipoPdf = dadosDaTela.tipoPdf || dadosDaTela.tipo || ''
   let tituloPdf = 'RELATÓRIO DE AVALIAÇÃO'
-  console.log('O tipoPdf sendo processado é:', tipoPdf)
-  // 1. Verificações específicas vêm SEMPRE primeiro
-  if (tipoPdf === 'recebimento_revisao') {
-    tituloPdf = 'RECEBIMENTO PARA REVISÃO'
+
+  // 1. Verificações de Status/Entrega (Prioridade Máxima)
+  if (dadosDaTela.status === 'entregue' || tipoPdf === 'entrega_cliente') {
+    tituloPdf = 'ENTREGUE AO CLIENTE'
   }
-  // 2. Agora as verificações genéricas
-  else if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
+  // 2. Verificações de Tipos Específicos
+  else if (tipoPdf === 'recebimento_revisao') {
+    tituloPdf = 'RECEBIMENTO PARA REVISÃO'
+  } else if (tipoPdf === 'recebimento_fabrica' || tipoPdf === 'recebimento') {
     tituloPdf = 'RECEBIMENTO DE FÁBRICA'
   } else if (tipoPdf === 'recebimento_usada') {
     tituloPdf = 'RECEBIMENTO NA UNIDADE'
   } else if (tipoPdf === 'coleta_usada_negociacao') {
     tituloPdf = 'COLETA DE MÁQUINA USADA (NEGOCIAÇÃO)'
-  } else if (tipoPdf === 'transferencia_saida' || tipoPdf === 'transferencia') {
+  }
+  // 3. Transferências
+  else if (tipoPdf === 'transferencia_saida' || tipoPdf === 'transferencia') {
     tituloPdf = `TRANSFERÊNCIA: ${(formulario?.unidadeAtual || '').toUpperCase()} → ${(formulario?.unidadeDestino || formulario?.destino || '').toUpperCase()}`
   } else if (tipoPdf === 'recebimento_transferencia') {
     tituloPdf = `RECEBIMENTO DE TRANSFERÊNCIA (DE ${(formulario?.unidadeOrigem || '').toUpperCase()})`
-  } else if (tipoPdf === 'venda') {
+  }
+  // 4. Outros
+  else if (tipoPdf === 'venda') {
     tituloPdf = 'VENDA AO CLIENTE'
-  } else if (tipoPdf === 'entrega_cliente') {
-    tituloPdf = 'ENTREGA AO CLIENTE'
   } else if (tipoPdf === 'edicao_checklist') {
     tituloPdf = 'EDIÇÃO DE CHECKLIST'
   }

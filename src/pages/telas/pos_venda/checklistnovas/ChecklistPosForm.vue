@@ -735,7 +735,7 @@ const abrirDialogAssinatura = (tipo) => {
   const roles = {
     responsavel: {
       nome: assinaturas.value.responsavelNome,
-      titulo: 'Assinatura do Responsável Técnico',
+      titulo: 'Assinatura do Responsável',
       label: 'Nome do Responsável',
     },
     motorista: {

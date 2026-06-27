@@ -409,11 +409,13 @@
                       <q-icon name="edit_square" size="xs" color="grey-5" />
                     </template>
                   </q-input>
-
                   <q-input
-                    v-if="(item.key === 'motorista' && tipoFrete === 'terceiro', 'retirou')"
+                    v-if="
+                      item.key === 'motorista' &&
+                      (tipoFrete === 'terceiro' || tipoFrete === 'retirou')
+                    "
                     v-model="assinaturas[item.key + 'Cpf']"
-                    label="CPF do Motorista / Opeerador"
+                    label="CPF do Motorista / Operador"
                     dark
                     filled
                     dense
@@ -602,13 +604,10 @@ const podeConfirmar = computed(() => {
   if (!assinaturas.value.motoristaNome || !assinaturas.value.motoristaImagem) return false
 
   // CPF obrigatório apenas para motorista terceiro
-  if (tipoTransferencia.value === 'cliente') {
-    if (tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou') {
-      const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
-      if (cpfLimpo.length < 11) return false
-    }
+  if (tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou') {
+    const cpfLimpo = (assinaturas.value.motoristaCpf || '').replace(/\D/g, '')
+    if (cpfLimpo.length < 11) return false
   }
-
   if (tipoTransferencia.value === 'cliente') return nomeCliente.value.trim() !== ''
   return destino.value !== ''
 })
@@ -903,8 +902,8 @@ const confirmarTransferencia = async () => {
 
     if (tipoTransferencia.value === 'unidade') {
       await updateDoc(doc(db, 'maquinas', serie), {
-        status: 'em_transito',
-        unidadeDestino: destino.value,
+        status: tipoFrete.value === 'retirou' ? 'entregue' : 'aguardando_entrega_cliente',
+        unidadeDestino: tipoFrete.value === 'retirou' ? 'Cliente' : nomeCliente.value,
         observacaoGeral: observacaoAcumulada,
         checklistEntrada: checklistAcumulado,
         ultimaAtualizacao: Timestamp.now(),
@@ -941,14 +940,17 @@ const confirmarTransferencia = async () => {
         message: `Máquina ${serie} em trânsito para ${destino.value}`,
       })
     } else {
-      const token = tipoFrete.value === 'terceiro' ? serie + '-' + Date.now().toString(36) : ''
+      const token =
+        tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou'
+          ? serie + '-' + Date.now().toString(36)
+          : ''
       const linkCliente = token ? `${window.location.origin}/#/verificacao/${token}` : ''
 
       // PASSO 1: Atualiza máquina
       try {
         await updateDoc(doc(db, 'maquinas', serie), {
-          status: 'aguardando_entrega_cliente',
-          unidadeDestino: nomeCliente.value,
+          status: tipoFrete.value === 'retirou' ? 'entregue' : 'aguardando_entrega_cliente',
+          unidadeDestino: tipoFrete.value === 'retirou' ? 'Cliente' : nomeCliente.value,
           observacaoGeral: observacaoAcumulada,
           checklistEntrada: checklistAcumulado,
           ultimaAtualizacao: Timestamp.now(),
@@ -983,7 +985,10 @@ const confirmarTransferencia = async () => {
             horimetro: maquinaSelecionada.value.horimetro || '',
             cliente: nomeCliente.value,
             endereco: assinaturas.value.enderecoCliente || '',
-            cpfCnpj: tipoFrete.value === 'terceiro' ? assinaturas.value.motoristaCpf || '' : '',
+            cpfCnpj:
+              tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou'
+                ? assinaturas.value.motoristaCpf || ''
+                : '',
             unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
             unidade: maquinaSelecionada.value.unidadeAtual, // ← NOVO
             modo: 'terceiro', // ← NOVO
@@ -1022,26 +1027,17 @@ const confirmarTransferencia = async () => {
             token: token,
             serie: serie,
             modelo: maquinaSelecionada.value.modelo,
-            marca: maquinaSelecionada.value.marca || '',
-            ano: maquinaSelecionada.value.ano || '',
-            horimetro: maquinaSelecionada.value.horimetro || '',
-            cliente: nomeCliente.value,
-            endereco: assinaturas.value.enderecoCliente || '',
-            cpfCnpj: tipoFrete.value === 'retirou' ? assinaturas.value.motoristaCpf || '' : '',
-            unidadeOrigem: maquinaSelecionada.value.unidadeAtual,
-            unidade: maquinaSelecionada.value.unidadeAtual, // ← NOVO
-            modo: 'retirou', // ← NOVO
-            checklistEntrada: JSON.parse(JSON.stringify(checklistAcumulado)),
-            motorista: motoristaFinal,
-            data: dataHoje,
+            cpfCnpj:
+              tipoFrete.value === 'terceiro' || tipoFrete.value === 'retirou'
+                ? assinaturas.value.motoristaCpf || ''
+                : '',
+            // ... (mantenha os outros campos que você já tem)
+            status: 'entregue', // Isso marca como entregue
             criadaEm: Timestamp.now(),
-            status: 'entregue',
-            assinaturaCliente: null,
-            observacoesCliente: {},
           })
-          console.log('✅ PASSO 2: entregas_cliente criado')
+          console.log('✅ PASSO 2: Registro de retirada criado com sucesso')
         } catch (e) {
-          console.error('❌ ERRO PASSO 2 (entregas_cliente):', e.message)
+          console.error('❌ ERRO AO CRIAR RETIRADA:', e.message)
           throw e
         }
       } else {
@@ -1073,7 +1069,18 @@ const confirmarTransferencia = async () => {
     // Geração do PDF
     try {
       const dadosParaPdf = {
-        tipoPdf: tipoTransferencia.value === 'cliente' ? 'venda' : 'transferencia_saida',
+        status:
+          tipoFrete.value === 'retirou'
+            ? 'entregue'
+            : tipoTransferencia.value === 'cliente'
+              ? 'venda'
+              : 'transferencia',
+        tipoPdf:
+          tipoFrete.value === 'retirou'
+            ? 'entrega_cliente'
+            : tipoTransferencia.value === 'cliente'
+              ? 'venda'
+              : 'transferencia_saida',
         tipo:
           tipoTransferencia.value === 'cliente'
             ? 'Venda ao Cliente'

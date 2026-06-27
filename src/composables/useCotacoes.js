@@ -1,13 +1,17 @@
 import { ref } from 'vue'
-import { Capacitor } from '@capacitor/core'
+//import { Capacitor } from '@capacitor/core'
 import localforage from 'localforage'
 
 const CACHE_KEY = 'cotacoes_cache'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
-const isNative = Capacitor.isNativePlatform()
-const IMEA_BASE = isNative ? 'https://api1.imea.com.br/api' : '/imea-api'
-const BCB_BASE = isNative ? 'https://olinda.bcb.gov.br' : '/bcb-api'
+//const isNative = Capacitor.isNativePlatform()
+
+//const IMEA_BASE = isNative ? 'https://api1.imea.com.br/api' : '/imea-api'
+//const BCB_BASE = isNative ? 'https://olinda.bcb.gov.br' : '/bcb-api'
+
+const IMEA_BASE = 'https://api1.imea.com.br/api'
+const BCB_BASE = 'https://olinda.bcb.gov.br'
 const IMEA_ENDPOINTS = {
   soja: '/v2/mobile/cadeias/4/cotacoes',
   milho: '/v2/mobile/cadeias/3/cotacoes',
@@ -79,7 +83,7 @@ async function fetchDolar() {
       if (json.value?.length) {
         // Get only last value per day
         const porDia = {}
-        json.value.forEach(item => {
+        json.value.forEach((item) => {
           const dia = item.dataHoraCotacao.split(' ')[0]
           porDia[dia] = item.cotacaoVenda
         })
@@ -105,14 +109,14 @@ async function fetchImeaCotacao(commodity, praca) {
     const normalizedTarget = normalizeText(targetPraca)
 
     // Filter by IndicadorFinalId (DISPONÍVEL)
-    const cotacoes = data.filter(item => item.IndicadorFinalId === indicadorId)
+    const cotacoes = data.filter((item) => item.IndicadorFinalId === indicadorId)
 
     // Find the specific city
-    let found = cotacoes.find(item => normalizeText(item.Localidade) === normalizedTarget)
+    let found = cotacoes.find((item) => normalizeText(item.Localidade) === normalizedTarget)
 
     // Fallback: try "Mato Grosso" (state average)
     if (!found) {
-      found = cotacoes.find(item => normalizeText(item.Localidade) === 'mato grosso')
+      found = cotacoes.find((item) => normalizeText(item.Localidade) === 'mato grosso')
     }
 
     // Fallback: first available
@@ -160,7 +164,9 @@ export function useCotacoes(pracaSelecionada) {
         fetchDolar(),
         praca ? fetchImeaCotacao('soja', praca) : Promise.resolve({ valor: null, variacao: null }),
         praca ? fetchImeaCotacao('milho', praca) : Promise.resolve({ valor: null, variacao: null }),
-        praca ? fetchImeaCotacao('algodao', praca) : Promise.resolve({ valor: null, variacao: null }),
+        praca
+          ? fetchImeaCotacao('algodao', praca)
+          : Promise.resolve({ valor: null, variacao: null }),
       ])
 
       cotacoes.value = { dolar, soja, milho, algodao }
